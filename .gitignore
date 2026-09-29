@@ -1,0 +1,4 @@
+zig_lib/.zig-cache/
+zig_lib/zig-out/lib/
+notes/
+.dart_tool/

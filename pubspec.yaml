@@ -1,0 +1,14 @@
+name: zig_fii
+description: A minimal Dart project.
+version: 0.1.0
+
+environment:
+  sdk: ^3.0.0
+
+executables:
+  main: main
+dependencies:
+  ffi: ^2.1.0
+
+dev_dependencies:
+  ffigen: ^22.0.0
