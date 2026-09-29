@@ -218,6 +218,9 @@ pkgcfg_lib_GIO_gobject-2.0:FILEPATH=/usr/lib/libgobject-2.0.so
 pkgcfg_lib_GLIB_glib-2.0:FILEPATH=/usr/lib/libglib-2.0.so
 
 //Path to a library.
+pkgcfg_lib_GTK_LAYER_SHELL_gtk-layer-shell:FILEPATH=/usr/lib/libgtk-layer-shell.so
+
+//Path to a library.
 pkgcfg_lib_GTK_atk-1.0:FILEPATH=/usr/lib/libatk-1.0.so
 
 //Path to a library.
@@ -483,6 +486,41 @@ GTK_CFLAGS_OTHER:INTERNAL=-pthread
 GTK_FOUND:INTERNAL=1
 GTK_INCLUDEDIR:INTERNAL=/usr/include
 GTK_INCLUDE_DIRS:INTERNAL=/usr/include/gtk-3.0;/usr/include/pango-1.0;/usr/include;/usr/include/cloudproviders;/usr/include/cairo;/usr/include/gdk-pixbuf-2.0;/usr/include/glycin-2;/usr/include/at-spi2-atk/2.0;/usr/include/at-spi-2.0;/usr/include/atk-1.0;/usr/include/dbus-1.0;/usr/lib/dbus-1.0/include;/usr/include/fribidi;/usr/include/pixman-1;/usr/include/harfbuzz;/usr/include/freetype2;/usr/include/libpng16;/usr/include/gio-unix-2.0;/usr/include/glib-2.0;/usr/lib/glib-2.0/include;/usr/include/libmount;/usr/include/blkid;/usr/include/sysprof-6
+GTK_LAYER_SHELL_CFLAGS:INTERNAL=-I/usr/include/gtk-layer-shell;-I/usr/include/gtk-3.0;-I/usr/include/pango-1.0;-I/usr/include;-I/usr/include/cloudproviders;-I/usr/include/cairo;-I/usr/include/gdk-pixbuf-2.0;-I/usr/include/glycin-2;-I/usr/include/at-spi2-atk/2.0;-I/usr/include/at-spi-2.0;-I/usr/include/atk-1.0;-I/usr/include/dbus-1.0;-I/usr/lib/dbus-1.0/include;-I/usr/include/fribidi;-I/usr/include/pixman-1;-I/usr/include/harfbuzz;-I/usr/include/freetype2;-I/usr/include/libpng16;-I/usr/include/gio-unix-2.0;-I/usr/include/glib-2.0;-I/usr/lib/glib-2.0/include;-I/usr/include/libmount;-I/usr/include/blkid;-I/usr/include/sysprof-6;-pthread
+GTK_LAYER_SHELL_CFLAGS_I:INTERNAL=
+GTK_LAYER_SHELL_CFLAGS_OTHER:INTERNAL=-pthread
+GTK_LAYER_SHELL_FOUND:INTERNAL=1
+GTK_LAYER_SHELL_INCLUDEDIR:INTERNAL=/usr/include
+GTK_LAYER_SHELL_INCLUDE_DIRS:INTERNAL=/usr/include/gtk-layer-shell;/usr/include/gtk-3.0;/usr/include/pango-1.0;/usr/include;/usr/include/cloudproviders;/usr/include/cairo;/usr/include/gdk-pixbuf-2.0;/usr/include/glycin-2;/usr/include/at-spi2-atk/2.0;/usr/include/at-spi-2.0;/usr/include/atk-1.0;/usr/include/dbus-1.0;/usr/lib/dbus-1.0/include;/usr/include/fribidi;/usr/include/pixman-1;/usr/include/harfbuzz;/usr/include/freetype2;/usr/include/libpng16;/usr/include/gio-unix-2.0;/usr/include/glib-2.0;/usr/lib/glib-2.0/include;/usr/include/libmount;/usr/include/blkid;/usr/include/sysprof-6
+GTK_LAYER_SHELL_LDFLAGS:INTERNAL=-L/usr/lib;-lgtk-layer-shell
+GTK_LAYER_SHELL_LDFLAGS_OTHER:INTERNAL=
+GTK_LAYER_SHELL_LIBDIR:INTERNAL=/usr/lib
+GTK_LAYER_SHELL_LIBRARIES:INTERNAL=gtk-layer-shell
+GTK_LAYER_SHELL_LIBRARY_DIRS:INTERNAL=/usr/lib
+GTK_LAYER_SHELL_LIBS:INTERNAL=
+GTK_LAYER_SHELL_LIBS_L:INTERNAL=
+GTK_LAYER_SHELL_LIBS_OTHER:INTERNAL=
+GTK_LAYER_SHELL_LIBS_PATHS:INTERNAL=
+GTK_LAYER_SHELL_MODULE_NAME:INTERNAL=gtk-layer-shell-0
+GTK_LAYER_SHELL_PREFIX:INTERNAL=/usr
+GTK_LAYER_SHELL_STATIC_CFLAGS:INTERNAL=-I/usr/include/gtk-layer-shell;-I/usr/include/gtk-3.0;-I/usr/include/pango-1.0;-I/usr/include;-I/usr/include/cloudproviders;-I/usr/include/cairo;-I/usr/include/gdk-pixbuf-2.0;-I/usr/include/glycin-2;-I/usr/include/at-spi2-atk/2.0;-I/usr/include/at-spi-2.0;-I/usr/include/atk-1.0;-I/usr/include/dbus-1.0;-I/usr/lib/dbus-1.0/include;-I/usr/include/fribidi;-I/usr/include/pixman-1;-I/usr/include/harfbuzz;-I/usr/include/freetype2;-I/usr/include/libpng16;-I/usr/include/gio-unix-2.0;-I/usr/include/glib-2.0;-I/usr/lib/glib-2.0/include;-I/usr/include/libmount;-I/usr/include/blkid;-I/usr/include/sysprof-6;-pthread;-DXML_STATIC
+GTK_LAYER_SHELL_STATIC_CFLAGS_I:INTERNAL=
+GTK_LAYER_SHELL_STATIC_CFLAGS_OTHER:INTERNAL=-pthread;-DXML_STATIC
+GTK_LAYER_SHELL_STATIC_INCLUDE_DIRS:INTERNAL=/usr/include/gtk-layer-shell;/usr/include/gtk-3.0;/usr/include/pango-1.0;/usr/include;/usr/include/cloudproviders;/usr/include/cairo;/usr/include/gdk-pixbuf-2.0;/usr/include/glycin-2;/usr/include/at-spi2-atk/2.0;/usr/include/at-spi-2.0;/usr/include/atk-1.0;/usr/include/dbus-1.0;/usr/lib/dbus-1.0/include;/usr/include/fribidi;/usr/include/pixman-1;/usr/include/harfbuzz;/usr/include/freetype2;/usr/include/libpng16;/usr/include/gio-unix-2.0;/usr/include/glib-2.0;/usr/lib/glib-2.0/include;/usr/include/libmount;/usr/include/blkid;/usr/include/sysprof-6
+GTK_LAYER_SHELL_STATIC_LDFLAGS:INTERNAL=-L/usr/lib;-lgtk-layer-shell;-lgtk-3;-lgdk-3;-lpangocairo-1.0;-lm;-lXrandr;-lXcursor;-lXcomposite;-lXdamage;-lXinerama;-lcloudproviders;-lcairo-gobject;-lm;-ldl;-lgdk_pixbuf-2.0;-lm;-lglycin-2;-lseccomp;-llcms2;-lm;-lpthread;-latk-bridge-2.0;-latspi;-lXtst;-lXi;-lXfixes;-latk-1.0;-ldbus-1;-pthread;-lsystemd;-Wl,--export-dynamic;-lxkbcommon;-lwayland-cursor;-lwayland-egl;-lepoxy;-ldl;-lGL;-lEGL;-lpangoft2-1.0;-lm;-lpango-1.0;-lm;-lfribidi;-lthai;-ldatrie;-lXft;-lcairo;-lm;-ldl;-lfontconfig;-pthread;-lm;-lexpat;-lm;-lXext;-lXrender;-lX11;-lpthread;-lxcb-render;-lxcb-shm;-lxcb;-lXau;-lXdmcp;-lpixman-1;-lm;-pthread;-lharfbuzz-gobject;-lharfbuzz;-lm;-lfreetype;-ldl;-lbz2;-lpng16;-lm;-lm;-lbrotlidec;-lbrotlicommon;-lgraphite2;-lgio-2.0;-lgobject-2.0;-lgmodule-2.0;-pthread;-lglib-2.0;-latomic;-pthread;-lpcre2-8;-lpthread;-lz;-lmount;-lblkid;-lsysprof-capture-4;-Wl,-z,nodelete;-pthread;-lwayland-client;-lm;-pthread;-lrt;-lffi
+GTK_LAYER_SHELL_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread;-Wl,--export-dynamic;-pthread;-pthread;-pthread;-pthread;-Wl,-z,nodelete;-pthread;-pthread
+GTK_LAYER_SHELL_STATIC_LIBDIR:INTERNAL=
+GTK_LAYER_SHELL_STATIC_LIBRARIES:INTERNAL=gtk-layer-shell;gtk-3;gdk-3;pangocairo-1.0;m;Xrandr;Xcursor;Xcomposite;Xdamage;Xinerama;cloudproviders;cairo-gobject;m;dl;gdk_pixbuf-2.0;m;glycin-2;seccomp;lcms2;m;pthread;atk-bridge-2.0;atspi;Xtst;Xi;Xfixes;atk-1.0;dbus-1;systemd;xkbcommon;wayland-cursor;wayland-egl;epoxy;dl;GL;EGL;pangoft2-1.0;m;pango-1.0;m;fribidi;thai;datrie;Xft;cairo;m;dl;fontconfig;m;expat;m;Xext;Xrender;X11;pthread;xcb-render;xcb-shm;xcb;Xau;Xdmcp;pixman-1;m;harfbuzz-gobject;harfbuzz;m;freetype;dl;bz2;png16;m;m;brotlidec;brotlicommon;graphite2;gio-2.0;gobject-2.0;gmodule-2.0;glib-2.0;atomic;pcre2-8;pthread;z;mount;blkid;sysprof-capture-4;wayland-client;m;rt;ffi
+GTK_LAYER_SHELL_STATIC_LIBRARY_DIRS:INTERNAL=/usr/lib
+GTK_LAYER_SHELL_STATIC_LIBS:INTERNAL=
+GTK_LAYER_SHELL_STATIC_LIBS_L:INTERNAL=
+GTK_LAYER_SHELL_STATIC_LIBS_OTHER:INTERNAL=
+GTK_LAYER_SHELL_STATIC_LIBS_PATHS:INTERNAL=
+GTK_LAYER_SHELL_VERSION:INTERNAL=0.10.0
+GTK_LAYER_SHELL_gtk-layer-shell-0_INCLUDEDIR:INTERNAL=
+GTK_LAYER_SHELL_gtk-layer-shell-0_LIBDIR:INTERNAL=
+GTK_LAYER_SHELL_gtk-layer-shell-0_PREFIX:INTERNAL=
+GTK_LAYER_SHELL_gtk-layer-shell-0_VERSION:INTERNAL=
 GTK_LDFLAGS:INTERNAL=-L/usr/lib;-lgtk-3;-lgdk-3;-lpangocairo-1.0;-lcairo-gobject;-lgdk_pixbuf-2.0;-latk-1.0;-lpango-1.0;-lcairo;-lharfbuzz;-lgio-2.0;-lgobject-2.0;-lglib-2.0;-lz
 GTK_LDFLAGS_OTHER:INTERNAL=
 GTK_LIBDIR:INTERNAL=/usr/lib
@@ -519,9 +557,11 @@ PKG_CONFIG_EXECUTABLE-ADVANCED:INTERNAL=1
 __pkg_config_arguments_GIO:INTERNAL=REQUIRED;IMPORTED_TARGET;gio-2.0
 __pkg_config_arguments_GLIB:INTERNAL=REQUIRED;IMPORTED_TARGET;glib-2.0
 __pkg_config_arguments_GTK:INTERNAL=REQUIRED;IMPORTED_TARGET;gtk+-3.0
+__pkg_config_arguments_GTK_LAYER_SHELL:INTERNAL=REQUIRED;IMPORTED_TARGET;gtk-layer-shell-0
 __pkg_config_checked_GIO:INTERNAL=1
 __pkg_config_checked_GLIB:INTERNAL=1
 __pkg_config_checked_GTK:INTERNAL=1
+__pkg_config_checked_GTK_LAYER_SHELL:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_GIO_gio-2.0
 pkgcfg_lib_GIO_gio-2.0-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_GIO_glib-2.0
@@ -530,6 +570,8 @@ pkgcfg_lib_GIO_glib-2.0-ADVANCED:INTERNAL=1
 pkgcfg_lib_GIO_gobject-2.0-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_GLIB_glib-2.0
 pkgcfg_lib_GLIB_glib-2.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK_LAYER_SHELL_gtk-layer-shell
+pkgcfg_lib_GTK_LAYER_SHELL_gtk-layer-shell-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_GTK_atk-1.0
 pkgcfg_lib_GTK_atk-1.0-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_GTK_cairo
