@@ -1,0 +1,12 @@
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/comp
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/icudtl.dat
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/lib/libflutter_linux_gtk.so
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/lib/libzig_lib.so
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/version.json
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/FontManifest.json
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/kernel_blob.bin
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/shaders/stretch_effect.frag
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/shaders/ink_sparkle.frag
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/AssetManifest.bin
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/NativeAssetsManifest.json
+/media/Maind/zahrawi/ongoing/dart_zig_fii/build/linux/x64/debug/bundle/data/flutter_assets/NOTICES.Z

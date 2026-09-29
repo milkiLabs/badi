@@ -1,5 +1,6 @@
 const std = @import("std");
 pub fn build(b: *std.Build) void {
+    // TODO: build for both android: aarch64-linux-android and linux: x86_64-linux-gnu
     const target = b.standardTargetOptions(.{});
     //   const optimize = b.standardOptimizeOption(.{});
     const optimize = .ReleaseFast;
