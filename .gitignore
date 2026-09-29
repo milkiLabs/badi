@@ -1,4 +1,5 @@
 zig_lib/.zig-cache/
-zig_lib/zig-out/lib/
+zig_lib/zig-out/
+zig_lib/zig-out-android/
 notes/
 .dart_tool/
