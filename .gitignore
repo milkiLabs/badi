@@ -3,3 +3,4 @@ zig_lib/zig-out/
 zig_lib/zig-out-android/
 notes/
 .dart_tool/
+build/
