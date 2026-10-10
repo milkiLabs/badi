@@ -3,7 +3,6 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const eql = std.mem.eql;
 const eqlIgnoreCase = std.ascii.eqlIgnoreCase;
 
 // TODO: maybe make it 64KB?
@@ -85,7 +84,7 @@ pub const Locale = struct {
     }
 
     pub fn same(a: Locale, b: Locale) bool {
-        return eql(u8, a.lang, b.lang) and optEql(a.country, b.country) and optEql(a.modifier, b.modifier);
+        return eqlStr(a.lang, b.lang) and optEql(a.country, b.country) and optEql(a.modifier, b.modifier);
     }
 };
 
@@ -132,7 +131,7 @@ pub const Group = struct {
         while (i > 0) {
             i -= 1;
             const e = self.entries[i];
-            if (e.locale == null and eql(u8, e.key, key)) return e;
+            if (e.locale == null and eqlStr(e.key, key)) return e;
         }
         return null;
     }
@@ -165,7 +164,7 @@ pub const Group = struct {
                 const e = self.entries[i];
                 // ignore entries without a locale.
                 const l = e.locale orelse continue;
-                if (eql(u8, e.key, key) and eql(u8, l.lang, want.lang) and
+                if (eqlStr(e.key, key) and eqlStr(l.lang, want.lang) and
                     optEql(l.country, a.country) and optEql(l.modifier, a.modifier))
                 {
                     return e;
@@ -190,8 +189,8 @@ pub const Group = struct {
     // TODO: should we return false for missing keys? and we have default vlaues for some keys
     pub fn getBool(self: Group, key: []const u8) ?bool {
         const v = self.get(key) orelse return null;
-        if (std.ascii.eqlIgnoreCase(v, "true") or eql(u8, v, "1")) return true;
-        if (std.ascii.eqlIgnoreCase(v, "false") or eql(u8, v, "0")) return false;
+        if (std.ascii.eqlIgnoreCase(v, "true") or eqlStr(v, "1")) return true;
+        if (std.ascii.eqlIgnoreCase(v, "false") or eqlStr(v, "0")) return false;
         return null;
     }
 
@@ -228,7 +227,7 @@ pub const Document = struct {
     /// First group with this name
     pub fn group(self: Document, name: []const u8) ?Group {
         for (self.groups) |g| {
-            if (eql(u8, g.name, name)) return g;
+            if (eqlStr(g.name, name)) return g;
         }
         return null;
     }
@@ -241,7 +240,7 @@ pub const Document = struct {
     pub fn actionGroup(self: Document, id: []const u8) ?Group {
         const prefix = "Desktop Action ";
         for (self.groups) |g| {
-            if (std.mem.startsWith(u8, g.name, prefix) and eql(u8, g.name[prefix.len..], id)) {
+            if (std.mem.startsWith(u8, g.name, prefix) and eqlStr(g.name[prefix.len..], id)) {
                 return g;
             }
         }
@@ -252,7 +251,7 @@ pub const Document = struct {
     /// Name present, Exec for applications (unless DBusActivatable), URL for links,
     /// strict booleans, and a group for every listed action. Returns the first problem.
     pub fn validate(self: Document) ValidationError!void {
-        if (self.groups.len == 0 or !eql(u8, self.groups[0].name, "Desktop Entry")) {
+        if (self.groups.len == 0 or !eqlStr(self.groups[0].name, "Desktop Entry")) {
             return ValidationError.MissingDesktopEntryGroup;
         }
         const g = self.groups[0];
@@ -268,7 +267,7 @@ pub const Document = struct {
 
         for (bool_keys) |k| {
             const v = g.get(k) orelse continue;
-            if (!eql(u8, v, "true") and !eql(u8, v, "false")) return error.InvalidBoolean;
+            if (!eqlStr(v, "true") and !eqlStr(v, "false")) return error.InvalidBoolean;
         }
 
         var ids = g.getList("Actions");
@@ -345,9 +344,9 @@ pub const Kind = enum {
     unknown,
 
     pub fn parse(s: []const u8) Kind {
-        if (eql(u8, s, "Application")) return .application;
-        if (eql(u8, s, "Link")) return .link;
-        if (eql(u8, s, "Directory")) return .directory;
+        if (eqlStr(s, "Application")) return .application;
+        if (eqlStr(s, "Link")) return .link;
+        if (eqlStr(s, "Directory")) return .directory;
         return .unknown;
     }
 };
@@ -419,7 +418,7 @@ pub const DesktopEntry = struct {
 
     pub fn action(self: DesktopEntry, id: []const u8) ?Action {
         for (self.actions) |a| {
-            if (eql(u8, a.id, id)) return a;
+            if (eqlStr(a.id, id)) return a;
         }
         return null;
     }
@@ -486,7 +485,7 @@ pub fn parse(gpa: Allocator, source: []const u8, options: Options) ParseError!Do
             if (options.strict) {
                 // Check for duplicate group names.
                 for (groups.items) |g| {
-                    if (eql(u8, g.name, name)) return error.DuplicateGroup;
+                    if (eqlStr(g.name, name)) return error.DuplicateGroup;
                 }
             }
             current = name;
@@ -526,7 +525,7 @@ pub fn parse(gpa: Allocator, source: []const u8, options: Options) ParseError!Do
 
         if (options.strict) {
             for (entries.items) |e| {
-                if (eql(u8, e.key, key) and sameLocale(e.locale, locale)) return error.DuplicateKey;
+                if (eqlStr(e.key, key) and sameLocale(e.locale, locale)) return error.DuplicateKey;
             }
         }
 
@@ -685,6 +684,10 @@ pub fn expandExec(arena: Allocator, exec: []const u8, ctx: ExecContext) ExecErro
 }
 
 // ---------------------------------------------------------------- helpers
+fn eqlStr(a: []const u8, b: []const u8) bool {
+    return std.mem.eql(u8, a, b);
+}
+
 fn isSpace(c: u8) bool {
     return c == ' ' or c == '\t' or c == '\n';
 }
@@ -706,7 +709,7 @@ fn sameLocale(a: ?Locale, b: ?Locale) bool {
 fn optEql(a: ?[]const u8, b: ?[]const u8) bool {
     const x = a orelse return b == null;
     const y = b orelse return false;
-    return eql(u8, x, y);
+    return eqlStr(x, y);
 }
 
 fn decodeList(arena: Allocator, raw: []const u8) Allocator.Error![]const []const u8 {
@@ -751,7 +754,7 @@ fn unescape(arena: Allocator, raw: []const u8, list_item: bool) Allocator.Error!
 
 fn contains(haystack: []const []const u8, needle: []const u8) bool {
     for (haystack) |h| {
-        if (eql(u8, h, needle)) return true;
+        if (eqlStr(h, needle)) return true;
     }
     return false;
 }
