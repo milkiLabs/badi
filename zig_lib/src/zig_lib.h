@@ -51,6 +51,14 @@ char *badi_session_icon(const BadiSession *session, size_t index);
 /* Move selection by delta rows, clamped. No-op on bad handle/empty view. */
 void badi_session_move(BadiSession *session, long delta);
 
+/*
+ * Append piped lines to a lines-mode session (copied). Newcomers matching
+ * the active query join the view in arrival order; selection is untouched.
+ * Returns 0, -1 on bad handle, wrong mode (apps sessions), or OOM.
+ * Empty appends are a no-op.
+ */
+int badi_session_append(BadiSession *session, const char *const *lines, size_t n);
+
 /* Selected shown-row index, or -1 when handle is bad or view is empty. */
 long badi_session_selected(const BadiSession *session);
 

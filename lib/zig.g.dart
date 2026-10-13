@@ -32,6 +32,28 @@ class ZigLib {
   late final _badi_free_string =
       _badi_free_stringPtr.asFunction<void Function(ffi.Pointer<ffi.Char>)>();
 
+  int badi_session_append(
+    ffi.Pointer<BadiSession> session,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> lines,
+    int n,
+  ) {
+    return _badi_session_append(
+      session,
+      lines,
+      n,
+    );
+  }
+
+  late final _badi_session_appendPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int Function(
+              ffi.Pointer<BadiSession>,
+              ffi.Pointer<ffi.Pointer<ffi.Char>>,
+              ffi.Size)>>('badi_session_append');
+  late final _badi_session_append = _badi_session_appendPtr.asFunction<
+      int Function(
+          ffi.Pointer<BadiSession>, ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
+
   ffi.Pointer<BadiSession> badi_session_apps(
     ffi.Pointer<ffi.Char> locale,
   ) {

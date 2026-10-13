@@ -15,6 +15,7 @@
 // is created. See https://github.com/mattkae/layer_shell.dart
 // ignore_for_file: invalid_use_of_internal_member
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -23,35 +24,35 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:layer_shell/layer_shell.dart';
 
+import 'batch.dart';
 import 'session.dart';
 
-/// Piped stdin (`find / | badi`) opens the line picker: Enter/click prints
-/// the line to stdout and exits 0. A terminal (or empty pipe) opens the
-/// app launcher. Dart owns stdin/stdout here; filtering, selection, and
-/// launching live in the Zig session core.
-Future<void> main() async {
+/// Piped stdin (`find / | badi`) opens the line picker: lines stream into
+/// the list live, Enter/click prints the line to stdout and exits 0. A
+/// terminal (or an empty pipe) opens the app launcher. Dart owns stdin and
+/// stdout here; filtering, selection, and launching live in the Zig
+/// session core, which grows incrementally per input batch.
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Installs ExtendedWindowingOwnerLinux globally. Must run once before
   // creating any LayershellWindowController.
   initLayerShell();
-  List<String>? lines;
-  if (!stdin.hasTerminal) {
-    lines = await stdin
-        .transform(const Utf8Decoder(allowMalformed: true))
-        .transform(const LineSplitter())
-        .where((l) => l.isNotEmpty)
-        .toList();
-    if (lines.isEmpty) lines = null; // fall back to the app launcher
-  }
-  runWidget(BadiShell(lines: lines));
+  runWidget(BadiShell(
+    piped: stdin.hasTerminal
+        ? null
+        : stdin
+            .transform(const Utf8Decoder(allowMalformed: true))
+            .transform(const LineSplitter())
+            .where((l) => l.isNotEmpty),
+  ));
 }
 
 /// Root widget driving one centered layer-shell surface.
 class BadiShell extends StatefulWidget {
-  const BadiShell({super.key, this.lines});
+  const BadiShell({super.key, this.piped});
 
   /// Piped input lines; null selects the app launcher.
-  final List<String>? lines;
+  final Stream<String>? piped;
 
   @override
   State<BadiShell> createState() => _BadiShellState();
@@ -113,7 +114,7 @@ class _BadiShellState extends State<BadiShell> {
                 child: Overlay(
                   initialEntries: [
                     OverlayEntry(
-                      builder: (_) => LauncherBody(lines: widget.lines),
+                      builder: (_) => LauncherBody(piped: widget.piped),
                     ),
                   ],
                 ),
@@ -128,13 +129,13 @@ class _BadiShellState extends State<BadiShell> {
 
 /// Launcher content: search field on top, virtualized selectable list.
 /// Pure UI: filtering, selection, and launch all live in the Zig backend
-/// ([Session]); this only renders rows and forwards events. In pipe
-/// mode (`lines != null`) rows are the piped lines and activating one
-/// prints it to stdout; otherwise rows are installed applications.
+/// ([Session]); this only renders rows and forwards events. In pipe mode
+/// (`piped != null`) rows stream in from stdin and activating one prints
+/// it to stdout; otherwise rows are installed applications.
 class LauncherBody extends StatefulWidget {
-  const LauncherBody({super.key, this.lines});
+  const LauncherBody({super.key, this.piped});
 
-  final List<String>? lines;
+  final Stream<String>? piped;
 
   @override
   State<LauncherBody> createState() => _LauncherBodyState();
@@ -148,7 +149,14 @@ class _LauncherBodyState extends State<LauncherBody> {
   int _selected = 0;
   String? _launchError;
 
-  bool get _pipe => widget.lines != null;
+  /// Pipe mode is event-driven: first piped line flips it on (see _onLine).
+  /// A dry pipe (flutter run, systemd, …) never produces, so the grace
+  /// timer falls back to apps instead of hanging on "No match" forever.
+  bool _pipeMode = false;
+  bool _streamDone = false;
+  Timer? _grace;
+  StreamSubscription<String>? _sub;
+  Batcher<String>? _batcher;
 
   late final TextEditingController _query;
   late final FocusNode _searchFocus;
@@ -165,6 +173,11 @@ class _LauncherBodyState extends State<LauncherBody> {
 
   @override
   void dispose() {
+    unawaited(_sub?.cancel());
+    _sub = null;
+    _grace?.cancel();
+    _grace = null;
+    _batcher = null; // drop leftovers: flushing here could setState mid-dispose
     _query.dispose();
     _searchFocus.dispose();
     _scroll.dispose();
@@ -173,11 +186,75 @@ class _LauncherBodyState extends State<LauncherBody> {
   }
 
   void _load() {
+    if (widget.piped == null) {
+      _enterApps(); // terminal: apps immediately, no subscription
+      return;
+    }
+    // Pipe-ish stdin: wait for the first signal instead of assuming data.
+    // Real pipes produce in milliseconds; the grace timer rescues dry
+    // supervised stdin (which never EOFs) without stalling real input.
+    _grace = Timer(const Duration(milliseconds: 200), _onGraceTimeout);
+    _sub = widget.piped!.listen(
+      _onLine,
+      onError: _onStreamError,
+      onDone: () => _onStreamDone(),
+    );
+  }
+
+  /// One input line arrived. The first line decides pipe mode; the rest
+  /// stream through the batcher. Also fires for slow pipes after the apps
+  /// fallback already painted (late flip, same path).
+  void _onLine(String line) {
+    if (_pipeMode) {
+      _batcher!.add(line);
+      return;
+    }
+    _enterPipe(line);
+  }
+
+  /// Open the picker on the first piped line. Replaces the apps session on
+  /// a late flip; re-applies any query typed meanwhile.
+  void _enterPipe(String first) {
+    _pipeMode = true;
+    _grace?.cancel();
+    _grace = null;
     try {
-      final s =
-          _pipe ? Session.lines(widget.lines!) : Session.apps();
+      final s = Session.lines([first]);
+      _s?.close();
+      _s = s;
+      _batcher = Batcher<String>(
+        size: 500,
+        idle: const Duration(milliseconds: 100),
+        onBatch: _onBatch,
+      );
+      final q = _query.text;
       setState(() {
-        _s = s;
+        if (q.isNotEmpty) s.setQuery(q);
+        _count = s.length;
+        _selected = s.selected;
+        _loading = false;
+      });
+    } catch (e) {
+      _pipeMode = false; // back to a consistent state: no pipe session open
+      unawaited(_sub?.cancel());
+      _sub = null;
+      _batcher = null;
+      setState(() {
+        _loading = false;
+        _error = '$e';
+      });
+    }
+  }
+
+  /// Open the app launcher: terminal path, empty pipe at EOF, or grace
+  /// timeout on a dry pipe. Keeps listening: slow-pipe data still flips
+  /// to the picker via _onLine.
+  void _enterApps() {
+    try {
+      final s = Session.apps();
+      _s?.close();
+      _s = s;
+      setState(() {
         _count = s.length;
         _selected = s.selected;
         _loading = false;
@@ -188,6 +265,43 @@ class _LauncherBodyState extends State<LauncherBody> {
         _error = '$e';
       });
     }
+  }
+
+  void _onGraceTimeout() {
+    _grace = null;
+    if (!_pipeMode) _enterApps();
+  }
+
+  /// One input batch arrived: extend the session, refresh the view.
+  /// Selection is untouched by appends (Zig side), so only counts sync.
+  void _onBatch(List<String> batch) {
+    final s = _s;
+    if (s == null || !mounted) return;
+    setState(() {
+      s.append(batch);
+      _count = s.length;
+      _selected = s.selected;
+    });
+  }
+
+  void _onStreamError(Object _, StackTrace __) => _onStreamDone();
+
+  Future<void> _onStreamDone() async {
+    if (_sub == null) return; // error and done both fire: run once
+    await _sub?.cancel();
+    _sub = null;
+    _grace?.cancel();
+    _grace = null;
+    _batcher?.close(); // flush leftovers through _onBatch
+    _batcher = null;
+    if (!mounted) return;
+    if (!_pipeMode && _s == null) {
+      _enterApps(); // EOF with zero data: show apps
+      return;
+    }
+    setState(() {
+      _streamDone = true;
+    });
   }
 
   void _onQuery(String text) {
@@ -222,7 +336,7 @@ class _LauncherBodyState extends State<LauncherBody> {
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
-        exit(_pipe ? 1 : 0);
+        exit(_pipeMode ? 1 : 0);
     }
     return KeyEventResult.ignored;
   }
@@ -247,7 +361,7 @@ class _LauncherBodyState extends State<LauncherBody> {
   Future<void> _activate(int i) async {
     final s = _s;
     if (s == null) return;
-    if (_pipe) {
+    if (_pipeMode) {
       stdout.writeln(s.result(i));
       await stdout.flush();
       exit(0);
@@ -279,7 +393,7 @@ class _LauncherBodyState extends State<LauncherBody> {
               cursorColor: const Color(0xFFFFFFFF),
               style: const TextStyle(color: Color(0xFFFFFFFF), fontSize: 14),
               decoration: InputDecoration(
-                hintText: _pipe ? 'Filter…' : 'Search applications…',
+                hintText: _pipeMode ? 'Filter…' : 'Search applications…',
                 hintStyle: TextStyle(color: Color(0xFF6C7086), fontSize: 14),
                 border: InputBorder.none,
               ),
@@ -289,8 +403,10 @@ class _LauncherBodyState extends State<LauncherBody> {
               _launchError ??
                   (_loading
                       ? 'Loading…'
-                      : _pipe
-                          ? '$_count lines'
+                      : _pipeMode
+                          ? (_streamDone
+                              ? '$_count lines'
+                              : '$_count lines…')
                           : '$_count applications'),
               style: TextStyle(
                 color: _launchError != null
@@ -311,7 +427,7 @@ class _LauncherBodyState extends State<LauncherBody> {
     if (_error != null) {
       return SingleChildScrollView(
         child: Text(
-          _pipe ? 'Failed to load input: $_error' : 'Failed to load applications: $_error',
+          _pipeMode ? 'Failed to load input: $_error' : 'Failed to load applications: $_error',
           style: const TextStyle(color: Color(0xFFF38BA8), fontSize: 13),
         ),
       );

@@ -89,6 +89,21 @@ class Session implements Finalizable {
     return ptrs.cast();
   }
 
+  /// Append piped lines (copied). Lines mode only; throws [StateError]
+  /// otherwise or on OOM. Empty input is a no-op. Newcomers matching the
+  /// active query join the view; selection is untouched.
+  void append(List<String> lines) {
+    _checkOpen();
+    if (lines.isEmpty) return;
+    return using((arena) {
+      if (_lib.badi_session_append(
+              _handle, _toNativeLines(lines, arena), lines.length) !=
+          0) {
+        throw StateError('badi_session_append failed');
+      }
+    });
+  }
+
   /// Re-filter on `query` (blank shows all) and reset selection to the top.
   /// Throws [StateError] on OOM.
   void setQuery(String query) {

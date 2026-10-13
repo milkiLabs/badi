@@ -22,9 +22,11 @@ pub const Session = struct {
     gpa: Allocator,
     list: apps.AppList, // owns the arena; every string borrows from it
     apps: []const App, // full list in apps mode; empty in lines mode
-    entries: []const Entry,
+    entries: std.ArrayList(Entry), // arena-backed, grows with piped input
     shown: std.ArrayList(usize), // gpa-owned indices into entries, reused per query
     selected: usize, // index into shown.items
+    query_lower: ?[]u8, // active filter, arena-owned; null shows all
+    lines_mode: bool, // appendLines only makes sense for piped input
 
     const App = apps.App;
 
@@ -39,19 +41,19 @@ pub const Session = struct {
         errdefer list.deinit();
         const arena = list.arena.allocator();
         const all = list.apps;
-        const entries = try arena.alloc(Entry, all.len);
+        var entries: std.ArrayList(Entry) = .empty;
         for (all, 0..) |a, i| {
-            entries[i] = .{
+            try entries.append(arena, .{
                 .title = a.name,
                 .subtitle = a.comment,
                 .icon = a.icon_path,
                 .hay = a.hay,
                 .app = i,
-            };
+            });
         }
         var shown: std.ArrayList(usize) = .empty;
         errdefer shown.deinit(gpa);
-        try showAll(&shown, gpa, entries.len);
+        try showAll(&shown, gpa, entries.items.len);
         return .{
             .gpa = gpa,
             .list = list,
@@ -59,6 +61,8 @@ pub const Session = struct {
             .entries = entries,
             .shown = shown,
             .selected = 0,
+            .query_lower = null,
+            .lines_mode = false,
         };
     }
 
@@ -68,20 +72,11 @@ pub const Session = struct {
         var list: apps.AppList = .{ .arena = .init(gpa), .apps = &.{} };
         errdefer list.deinit();
         const arena = list.arena.allocator();
-        const entries = try arena.alloc(Entry, lines.len);
-        for (lines, 0..) |line, i| {
-            const title = try arena.dupe(u8, line);
-            entries[i] = .{
-                .title = title,
-                .subtitle = null,
-                .icon = null,
-                .hay = try text.lowerDup(arena, title),
-                .app = null,
-            };
-        }
+        var entries: std.ArrayList(Entry) = .empty;
+        try dupeEntries(&entries, arena, lines);
         var shown: std.ArrayList(usize) = .empty;
         errdefer shown.deinit(gpa);
-        try showAll(&shown, gpa, entries.len);
+        try showAll(&shown, gpa, entries.items.len);
         return .{
             .gpa = gpa,
             .list = list,
@@ -89,6 +84,8 @@ pub const Session = struct {
             .entries = entries,
             .shown = shown,
             .selected = 0,
+            .query_lower = null,
+            .lines_mode = true,
         };
     }
 
@@ -96,19 +93,35 @@ pub const Session = struct {
     /// substring) and reset selection to the top.
     pub fn setQuery(self: *Session, query: ?[]const u8) Allocator.Error!void {
         const q = std.mem.trim(u8, query orelse "", " \t");
+        const arena = self.list.arena.allocator();
+        self.query_lower = if (q.len == 0) null else try text.lowerDup(arena, q);
         self.shown.clearRetainingCapacity();
-        if (q.len == 0) {
-            for (0..self.entries.len) |i| try self.shown.append(self.gpa, i);
-        } else {
-            const ql = try text.lowerDup(self.gpa, q);
-            defer self.gpa.free(ql);
-            for (self.entries, 0..) |e, i| {
-                if (std.mem.indexOf(u8, e.hay, ql) != null) try self.shown.append(self.gpa, i);
-            }
-        }
+        try self.appendMatches(0);
         self.selected = 0;
     }
 
+    /// Append piped lines (lines mode only); newcomers matching the active
+    /// query join the view in arrival order. Selection is untouched so
+    /// streaming never yanks the highlight.
+    pub fn appendLines(self: *Session, lines: []const []const u8) AppendError!void {
+        if (!self.lines_mode) return error.WrongMode;
+        const arena = self.list.arena.allocator();
+        const from = self.entries.items.len;
+        try dupeEntries(&self.entries, arena, lines);
+        try self.appendMatches(from);
+    }
+
+    /// Push indices of entries[from..] matching the stored query into the
+    /// view. Blank query matches all.
+    fn appendMatches(self: *Session, from: usize) Allocator.Error!void {
+        if (self.query_lower) |ql| {
+            for (self.entries.items[from..], from..) |e, i| {
+                if (std.mem.indexOf(u8, e.hay, ql) != null) try self.shown.append(self.gpa, i);
+            }
+        } else {
+            for (from..self.entries.items.len) |i| try self.shown.append(self.gpa, i);
+        }
+    }
     /// Move selection by `delta` rows, clamped. No-op when empty.
     pub fn moveSelected(self: *Session, delta: isize) void {
         const n = self.shown.items.len;
@@ -126,13 +139,13 @@ pub const Session = struct {
     /// Selected row, or null when empty.
     pub fn selectedEntry(self: *const Session) ?Entry {
         if (self.selected >= self.shown.items.len) return null;
-        return self.entries[self.shown.items[self.selected]];
+        return self.entries.items[self.shown.items[self.selected]];
     }
 
     /// Shown row `i` (display order), or null when out of range.
     pub fn row(self: *const Session, i: usize) ?Entry {
         if (i >= self.shown.items.len) return null;
-        return self.entries[self.shown.items[i]];
+        return self.entries.items[self.shown.items[i]];
     }
 
     /// Spawn shown row `i`. Lines mode has nothing to spawn.
@@ -143,9 +156,25 @@ pub const Session = struct {
     }
 };
 
+pub const AppendError = error{WrongMode} || Allocator.Error;
+
 fn showAll(shown: *std.ArrayList(usize), gpa: Allocator, n: usize) Allocator.Error!void {
     shown.clearRetainingCapacity();
     for (0..n) |i| try shown.append(gpa, i);
+}
+
+/// Copy `lines` into arena-owned entries (title + lowercase blob each).
+fn dupeEntries(entries: *std.ArrayList(Entry), arena: Allocator, lines: []const []const u8) Allocator.Error!void {
+    for (lines) |line| {
+        const title = try arena.dupe(u8, line);
+        try entries.append(arena, .{
+            .title = title,
+            .subtitle = null,
+            .icon = null,
+            .hay = try text.lowerDup(arena, title),
+            .app = null,
+        });
+    }
 }
 
 // ---------------------------------------------------------------- tests
@@ -197,4 +226,46 @@ test "query resets selection, rows are display-ordered" {
     try testing.expectEqualStrings("alpha", s.row(0).?.title);
     try testing.expectEqualStrings("alphabet", s.row(1).?.title);
     try testing.expect(s.row(2) == null);
+}
+
+test "append extends view, filters newcomers, keeps selection" {
+    var s = try Session.initLines(testing.allocator, &.{"alpha"});
+    defer s.deinit();
+    try s.setQuery("alph");
+    try testing.expectEqual(@as(usize, 1), s.count());
+
+    try s.appendLines(&.{ "beta", "alphabet soup", "gamma" });
+    try testing.expectEqual(@as(usize, 2), s.count());
+    try testing.expectEqualStrings("alpha", s.row(0).?.title);
+    try testing.expectEqualStrings("alphabet soup", s.row(1).?.title);
+    try testing.expectEqual(@as(usize, 0), s.selected);
+
+    s.moveSelected(1);
+    try s.appendLines(&.{"delta"}); // no match: view and selection untouched
+    try testing.expectEqual(@as(usize, 2), s.count());
+    try testing.expectEqual(@as(usize, 1), s.selected);
+
+    try s.setQuery("");
+    try testing.expectEqual(@as(usize, 5), s.count());
+}
+
+test "append to empty session revives selection" {
+    var s = try Session.initLines(testing.allocator, &.{});
+    defer s.deinit();
+    try s.setQuery("x");
+    try testing.expectEqual(@as(usize, 0), s.count());
+    try testing.expect(s.selectedEntry() == null);
+
+    try s.appendLines(&.{"xray"});
+    try testing.expectEqual(@as(usize, 1), s.count());
+    try testing.expectEqualStrings("xray", s.selectedEntry().?.title);
+}
+
+test "append to apps session is rejected" {
+    var s = try Session.initLines(testing.allocator, &.{"a"});
+    defer s.deinit();
+    // Lines mode accepts; apps mode has no lines to append to. Cover the
+    // misuse path via a flipped flag (initApps needs real system dirs).
+    s.lines_mode = false;
+    try testing.expectError(error.WrongMode, s.appendLines(&.{"b"}));
 }

@@ -141,6 +141,23 @@ export fn badi_session_result(handle: ?*const BadiSession, index: usize) callcon
     return dupe(e.title);
 }
 
+/// Append piped lines to a lines-mode session (copied). Newcomers matching
+/// the active query join the view in arrival order; selection is untouched.
+/// Returns 0, -1 on bad handle, wrong mode (apps sessions), or OOM.
+/// Empty appends are a no-op.
+export fn badi_session_append(handle: ?*BadiSession, lines: ?[*]const [*:0]const u8, n: usize) callconv(.c) c_int {
+    const s = sessionOf(handle) orelse return -1;
+    if (lines) |ls| {
+        if (n > 0) {
+            const buf = c_alloc.alloc([]const u8, n) catch return -1;
+            defer c_alloc.free(buf);
+            for (buf, 0..) |*slot, i| slot.* = std.mem.span(ls[i]);
+            s.appendLines(buf) catch return -1;
+        }
+    }
+    return 0;
+}
+
 /// Free a session handle. NULL-safe.
 export fn badi_session_destroy(handle: ?*BadiSession) callconv(.c) void {
     const h = handle orelse return;
