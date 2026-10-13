@@ -18,53 +18,50 @@
 import 'package:flutter/widgets.dart';
 import 'package:layer_shell/layer_shell.dart';
 
-import 'zig.dart';
+import 'badi.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Installs ExtendedWindowingOwnerLinux globally. Must run once before
   // creating any LayershellWindowController.
   initLayerShell();
-  runWidget(const ZigShell());
+  runWidget(const BadiShell());
 }
 
-/// Root widget driving one layer-shell surface (top panel).
-class ZigShell extends StatefulWidget {
-  const ZigShell({super.key});
+/// Root widget driving one centered layer-shell surface.
+class BadiShell extends StatefulWidget {
+  const BadiShell({super.key});
 
   @override
-  State<ZigShell> createState() => _ZigShellState();
+  State<BadiShell> createState() => _BadiShellState();
 }
 
-class _ZigShellState extends State<ZigShell> {
-  late final LayershellWindowController _panel;
+class _BadiShellState extends State<BadiShell> {
+  late final LayershellWindowController _window;
 
   @override
   void initState() {
     super.initState();
     final monitor = listMonitors().firstOrNull;
 
-    // Top bar: 56px tall, reserves 56px so maximized windows don't
-    // draw underneath it. Change layer/anchors/size for dock,
-    // side panel, overlay, or background usage.
-    _panel = LayershellWindowController(
-      layer: LayerShellLayer.top,
-      anchorEdges: const [
-        LayerShellEdge.top,
-        LayerShellEdge.left,
-        LayerShellEdge.right,
-      ],
-      keyboardMode: LayerShellKeyboardMode.none,
-      height: 56,
-      exclusiveZone: 56,
+    // Centered floating window: no anchor edges + explicit size makes the
+    // compositor place it in the middle of the screen. exclusiveZone 0 so
+    // it reserves no space for maximized windows.
+    _window = LayershellWindowController(
+      layer: LayerShellLayer.overlay,
+      anchorEdges: const [],
+      keyboardMode: LayerShellKeyboardMode.onDemand,
+      width: 480,
+      height: 600,
+      exclusiveZone: 0,
       monitor: monitor?.gdkMonitor,
-      namespace: 'zig-fii-panel',
+      namespace: 'badi-launcher',
     );
   }
 
   @override
   void dispose() {
-    _panel.destroy();
+    _window.destroy();
     super.dispose();
   }
 
@@ -73,38 +70,63 @@ class _ZigShellState extends State<ZigShell> {
     return ViewCollection(
       views: [
         LayerShellWindow(
-          controller: _panel,
-          child: const PanelBody(),
+          controller: _window,
+          child: const AppListBody(),
         ),
       ],
     );
   }
 }
 
-/// Panel content. Same Zig FFI logic as the old MaterialApp version,
-/// laid out as a compact horizontal bar for a 56px layer-shell surface.
-class PanelBody extends StatefulWidget {
-  const PanelBody({super.key});
-
-  @override
-  State<PanelBody> createState() => _PanelBodyState();
+/// Simple record for one row of the list.
+class _AppItem {
+  const _AppItem({required this.name, required this.exec});
+  final String name;
+  final String exec;
 }
 
-class _PanelBodyState extends State<PanelBody> {
-  String _result = 'calling Zig...';
+/// Centered window content: a header plus a scrollable list of installed apps.
+class AppListBody extends StatefulWidget {
+  const AppListBody({super.key});
+
+  @override
+  State<AppListBody> createState() => _AppListBodyState();
+}
+
+class _AppListBodyState extends State<AppListBody> {
+  List<_AppItem>? _items;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _callZig();
+    _load();
   }
 
-  void _callZig() {
+  void _load() {
     try {
-      final sum = zigLib.add(40, 2);
-      setState(() => _result = 'Zig add(40, 2) = $sum');
+      final apps = BadiApps.scan();
+      try {
+        final items = <_AppItem>[
+          for (var i = 0; i < apps.length; i++)
+            if (apps.getAt(i, 'Desktop Entry', 'Name') case final name?)
+              _AppItem(
+                name: name,
+                exec: apps.getAt(i, 'Desktop Entry', 'Exec') ?? '',
+              ),
+        ];
+        setState(() {
+          _items = items;
+          _error = null;
+        });
+      } finally {
+        apps.close();
+      }
     } catch (e) {
-      setState(() => _result = 'Failed to load Zig lib: $e');
+      setState(() {
+        _items = null;
+        _error = '$e';
+      });
     }
   }
 
@@ -115,53 +137,94 @@ class _PanelBodyState extends State<PanelBody> {
       child: ColoredBox(
         color: const Color(0xFF1E1E2E),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'zig_fii',
-                style: TextStyle(
+              Text(
+                _items == null && _error == null
+                    ? 'Loading…'
+                    : '${_items?.length ?? 0} applications',
+                style: const TextStyle(
                   color: Color(0xFFFFFFFF),
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  _result,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFCDD6F4),
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: _callZig,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF45475A),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Call Zig again',
-                    style: TextStyle(
-                      color: Color(0xFFFFFFFF),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 12),
+              Expanded(child: _buildBody()),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_error != null) {
+      return SingleChildScrollView(
+        child: Text(
+          'Failed to load applications: $_error',
+          style: const TextStyle(color: Color(0xFFF38BA8), fontSize: 13),
+        ),
+      );
+    }
+    final items = _items;
+    if (items == null) {
+      return const Center(
+        child: Text(
+          'Loading…',
+          style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 13),
+        ),
+      );
+    }
+    if (items.isEmpty) {
+      return const Center(
+        child: Text(
+          'No applications found',
+          style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 13),
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: items.length,
+      itemExtent: 56,
+      itemBuilder: (context, i) {
+        final item = items[i];
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ColoredBox(
+            color: const Color(0xFF313244),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFFFFFFF),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (item.exec.isNotEmpty)
+                    Text(
+                      item.exec,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFA6ADC8),
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

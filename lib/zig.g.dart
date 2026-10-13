@@ -18,17 +18,94 @@ class ZigLib {
           lookup)
       : _lookup = lookup;
 
-  int add(
-    int a,
-    int b,
+  void badi_free_string(
+    ffi.Pointer<ffi.Char> s,
   ) {
-    return _add(
-      a,
-      b,
+    return _badi_free_string(
+      s,
     );
   }
 
-  late final _addPtr =
-      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Int, ffi.Int)>>('add');
-  late final _add = _addPtr.asFunction<int Function(int, int)>();
+  late final _badi_free_stringPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Char>)>>(
+          'badi_free_string');
+  late final _badi_free_string =
+      _badi_free_stringPtr.asFunction<void Function(ffi.Pointer<ffi.Char>)>();
+
+  ffi.Pointer<BadiAppList> badi_scan(
+    ffi.Pointer<ffi.Char> home_dir,
+  ) {
+    return _badi_scan(
+      home_dir,
+    );
+  }
+
+  late final _badi_scanPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<BadiAppList> Function(
+              ffi.Pointer<ffi.Char>)>>('badi_scan');
+  late final _badi_scan = _badi_scanPtr
+      .asFunction<ffi.Pointer<BadiAppList> Function(ffi.Pointer<ffi.Char>)>();
+
+  int badi_scan_count(
+    ffi.Pointer<BadiAppList> list,
+  ) {
+    return _badi_scan_count(
+      list,
+    );
+  }
+
+  late final _badi_scan_countPtr =
+      _lookup<ffi.NativeFunction<ffi.Size Function(ffi.Pointer<BadiAppList>)>>(
+          'badi_scan_count');
+  late final _badi_scan_count =
+      _badi_scan_countPtr.asFunction<int Function(ffi.Pointer<BadiAppList>)>();
+
+  void badi_scan_destroy(
+    ffi.Pointer<BadiAppList> list,
+  ) {
+    return _badi_scan_destroy(
+      list,
+    );
+  }
+
+  late final _badi_scan_destroyPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<BadiAppList>)>>(
+          'badi_scan_destroy');
+  late final _badi_scan_destroy = _badi_scan_destroyPtr
+      .asFunction<void Function(ffi.Pointer<BadiAppList>)>();
+
+  ffi.Pointer<ffi.Char> badi_scan_get_value(
+    ffi.Pointer<BadiAppList> list,
+    int index,
+    ffi.Pointer<ffi.Char> group,
+    ffi.Pointer<ffi.Char> key,
+    ffi.Pointer<ffi.Char> locale,
+  ) {
+    return _badi_scan_get_value(
+      list,
+      index,
+      group,
+      key,
+      locale,
+    );
+  }
+
+  late final _badi_scan_get_valuePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+              ffi.Pointer<BadiAppList>,
+              ffi.Size,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('badi_scan_get_value');
+  late final _badi_scan_get_value = _badi_scan_get_valuePtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(
+          ffi.Pointer<BadiAppList>,
+          int,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>)>();
 }
+
+final class BadiAppList extends ffi.Opaque {}
