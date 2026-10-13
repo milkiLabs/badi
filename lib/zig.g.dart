@@ -18,42 +18,6 @@ class ZigLib {
           lookup)
       : _lookup = lookup;
 
-  int badi_apps_argc(
-    ffi.Pointer<BadiAppList> apps,
-    int index,
-  ) {
-    return _badi_apps_argc(
-      apps,
-      index,
-    );
-  }
-
-  late final _badi_apps_argcPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int Function(
-              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_argc');
-  late final _badi_apps_argc = _badi_apps_argcPtr
-      .asFunction<int Function(ffi.Pointer<BadiAppList>, int)>();
-
-  ffi.Pointer<ffi.Char> badi_apps_argv(
-    ffi.Pointer<BadiAppList> apps,
-    int index,
-    int arg,
-  ) {
-    return _badi_apps_argv(
-      apps,
-      index,
-      arg,
-    );
-  }
-
-  late final _badi_apps_argvPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<BadiAppList>, ffi.Size, ffi.Size)>>('badi_apps_argv');
-  late final _badi_apps_argv = _badi_apps_argvPtr.asFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiAppList>, int, int)>();
-
   ffi.Pointer<ffi.Char> badi_apps_comment(
     ffi.Pointer<BadiAppList> apps,
     int index,
@@ -99,73 +63,39 @@ class ZigLib {
   late final _badi_apps_destroy = _badi_apps_destroyPtr
       .asFunction<void Function(ffi.Pointer<BadiAppList>)>();
 
-  ffi.Pointer<ffi.Char> badi_apps_exec(
+  ffi.Pointer<ffi.Char> badi_apps_icon_path(
     ffi.Pointer<BadiAppList> apps,
     int index,
   ) {
-    return _badi_apps_exec(
+    return _badi_apps_icon_path(
       apps,
       index,
     );
   }
 
-  late final _badi_apps_execPtr = _lookup<
+  late final _badi_apps_icon_pathPtr = _lookup<
       ffi.NativeFunction<
           ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_exec');
-  late final _badi_apps_exec = _badi_apps_execPtr.asFunction<
+              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_icon_path');
+  late final _badi_apps_icon_path = _badi_apps_icon_pathPtr.asFunction<
       ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiAppList>, int)>();
 
-  ffi.Pointer<ffi.Char> badi_apps_icon(
+  int badi_apps_launch(
     ffi.Pointer<BadiAppList> apps,
     int index,
   ) {
-    return _badi_apps_icon(
+    return _badi_apps_launch(
       apps,
       index,
     );
   }
 
-  late final _badi_apps_iconPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_icon');
-  late final _badi_apps_icon = _badi_apps_iconPtr.asFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiAppList>, int)>();
-
-  int badi_apps_is_terminal(
-    ffi.Pointer<BadiAppList> apps,
-    int index,
-  ) {
-    return _badi_apps_is_terminal(
-      apps,
-      index,
-    );
-  }
-
-  late final _badi_apps_is_terminalPtr = _lookup<
+  late final _badi_apps_launchPtr = _lookup<
       ffi.NativeFunction<
           ffi.Int Function(
-              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_is_terminal');
-  late final _badi_apps_is_terminal = _badi_apps_is_terminalPtr
+              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_launch');
+  late final _badi_apps_launch = _badi_apps_launchPtr
       .asFunction<int Function(ffi.Pointer<BadiAppList>, int)>();
-
-  ffi.Pointer<ffi.Char> badi_apps_keywords(
-    ffi.Pointer<BadiAppList> apps,
-    int index,
-  ) {
-    return _badi_apps_keywords(
-      apps,
-      index,
-    );
-  }
-
-  late final _badi_apps_keywordsPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_keywords');
-  late final _badi_apps_keywords = _badi_apps_keywordsPtr.asFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiAppList>, int)>();
 
   ffi.Pointer<ffi.Char> badi_apps_name(
     ffi.Pointer<BadiAppList> apps,
@@ -184,29 +114,10 @@ class ZigLib {
   late final _badi_apps_name = _badi_apps_namePtr.asFunction<
       ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiAppList>, int)>();
 
-  ffi.Pointer<ffi.Char> badi_apps_path(
-    ffi.Pointer<BadiAppList> apps,
-    int index,
-  ) {
-    return _badi_apps_path(
-      apps,
-      index,
-    );
-  }
-
-  late final _badi_apps_pathPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<BadiAppList>, ffi.Size)>>('badi_apps_path');
-  late final _badi_apps_path = _badi_apps_pathPtr.asFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiAppList>, int)>();
-
   ffi.Pointer<BadiAppList> badi_apps_scan(
-    ffi.Pointer<ffi.Char> home_dir,
     ffi.Pointer<ffi.Char> locale,
   ) {
     return _badi_apps_scan(
-      home_dir,
       locale,
     );
   }
@@ -214,10 +125,72 @@ class ZigLib {
   late final _badi_apps_scanPtr = _lookup<
       ffi.NativeFunction<
           ffi.Pointer<BadiAppList> Function(
-              ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>>('badi_apps_scan');
-  late final _badi_apps_scan = _badi_apps_scanPtr.asFunction<
-      ffi.Pointer<BadiAppList> Function(
-          ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
+              ffi.Pointer<ffi.Char>)>>('badi_apps_scan');
+  late final _badi_apps_scan = _badi_apps_scanPtr
+      .asFunction<ffi.Pointer<BadiAppList> Function(ffi.Pointer<ffi.Char>)>();
+
+  ffi.Pointer<BadiFound> badi_apps_search(
+    ffi.Pointer<BadiAppList> apps,
+    ffi.Pointer<ffi.Char> query,
+  ) {
+    return _badi_apps_search(
+      apps,
+      query,
+    );
+  }
+
+  late final _badi_apps_searchPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<BadiFound> Function(ffi.Pointer<BadiAppList>,
+              ffi.Pointer<ffi.Char>)>>('badi_apps_search');
+  late final _badi_apps_search = _badi_apps_searchPtr.asFunction<
+      ffi.Pointer<BadiFound> Function(
+          ffi.Pointer<BadiAppList>, ffi.Pointer<ffi.Char>)>();
+
+  int badi_found_at(
+    ffi.Pointer<BadiFound> found,
+    int n,
+  ) {
+    return _badi_found_at(
+      found,
+      n,
+    );
+  }
+
+  late final _badi_found_atPtr = _lookup<
+          ffi
+          .NativeFunction<ffi.Long Function(ffi.Pointer<BadiFound>, ffi.Size)>>(
+      'badi_found_at');
+  late final _badi_found_at =
+      _badi_found_atPtr.asFunction<int Function(ffi.Pointer<BadiFound>, int)>();
+
+  int badi_found_count(
+    ffi.Pointer<BadiFound> found,
+  ) {
+    return _badi_found_count(
+      found,
+    );
+  }
+
+  late final _badi_found_countPtr =
+      _lookup<ffi.NativeFunction<ffi.Size Function(ffi.Pointer<BadiFound>)>>(
+          'badi_found_count');
+  late final _badi_found_count =
+      _badi_found_countPtr.asFunction<int Function(ffi.Pointer<BadiFound>)>();
+
+  void badi_found_destroy(
+    ffi.Pointer<BadiFound> found,
+  ) {
+    return _badi_found_destroy(
+      found,
+    );
+  }
+
+  late final _badi_found_destroyPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<BadiFound>)>>(
+          'badi_found_destroy');
+  late final _badi_found_destroy = _badi_found_destroyPtr
+      .asFunction<void Function(ffi.Pointer<BadiFound>)>();
 
   void badi_free_string(
     ffi.Pointer<ffi.Char> s,
@@ -235,3 +208,5 @@ class ZigLib {
 }
 
 final class BadiAppList extends ffi.Opaque {}
+
+final class BadiFound extends ffi.Opaque {}

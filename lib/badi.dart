@@ -7,35 +7,30 @@ import 'package:ffi/ffi.dart';
 import 'zig.dart';
 import 'zig.g.dart';
 
-/// One installed application, copied out of a [BadiApps] handle.
+/// One installed application. [index] is the handle-local id to pass
+/// to [BadiApps.launch].
 class BadiApp {
   const BadiApp({
+    required this.index,
     required this.name,
-    required this.exec,
-    required this.argv,
-    required this.terminal,
-    this.icon,
     this.comment,
-    this.keywords,
-    this.path,
+    this.iconPath,
   });
 
+  final int index;
   final String name;
-  final String exec;
-  final List<String> argv;
-  final bool terminal;
-  final String? icon;
   final String? comment;
-  final String? keywords;
-  final String? path;
+  final String? iconPath;
 }
 
-/// Owning handle for an app scan. Read items out with [appAt]/[apps],
-/// then [close]:
+/// Owning handle for an app scan. The backend (Zig) owns listing,
+/// sorting, icon lookup, search, and launching; this class only copies
+/// strings out and forwards calls:
 /// ```dart
 /// final apps = BadiApps.scan();
 /// try {
-///   for (final app in apps.apps) print(app.name);
+///   for (final app in apps.search('term')) print(app.name);
+///   apps.launch(apps.search('firefox').first.index);
 /// } finally {
 ///   apps.close();
 /// }
@@ -51,20 +46,18 @@ class BadiApps implements Finalizable {
   late final Finalizer<Pointer<BadiAppList>> _finalizer =
       Finalizer((apps) => _lib.badi_apps_destroy(apps));
 
-  /// Scan system + user applications dirs. `homeDir` locates
-  /// `~/.local/share/applications` (defaults to `$HOME`); `locale`
-  /// (defaults to the system locale) picks localized names.
+  /// Scan system + user applications dirs, sorted by name.
+  /// `locale` (defaults to the system locale) picks localized names.
   /// Throws [StateError] on OOM (NULL handle).
-  factory BadiApps.scan({String? homeDir, String? locale, ZigLib? lib}) {
+  factory BadiApps.scan({String? locale, ZigLib? lib}) {
     final l = lib ?? zigLib;
-    final home = homeDir ?? Platform.environment['HOME'];
     final lang = locale ?? Platform.localeName;
     return using((arena) {
-      final h =
-          home == null ? nullptr.cast<Utf8>() : home.toNativeUtf8(allocator: arena);
       final loc = lang.toNativeUtf8(allocator: arena);
-      final handle = l.badi_apps_scan(h.cast(), loc.cast());
-      if (handle == nullptr) throw StateError('badi_apps_scan returned NULL (OOM)');
+      final handle = l.badi_apps_scan(loc.cast());
+      if (handle == nullptr) {
+        throw StateError('badi_apps_scan returned NULL (OOM)');
+      }
       return BadiApps._(l, handle);
     });
   }
@@ -81,30 +74,44 @@ class BadiApps implements Finalizable {
     final name = _string(_lib.badi_apps_name(_handle, index));
     if (name == null) throw StateError('no app at index $index');
     return BadiApp(
+      index: index,
       name: name,
-      exec: _string(_lib.badi_apps_exec(_handle, index)) ?? '',
-      argv: argvAt(index),
-      terminal: _lib.badi_apps_is_terminal(_handle, index) == 1,
-      icon: _string(_lib.badi_apps_icon(_handle, index)),
       comment: _string(_lib.badi_apps_comment(_handle, index)),
-      keywords: _string(_lib.badi_apps_keywords(_handle, index)),
-      path: _string(_lib.badi_apps_path(_handle, index)),
+      iconPath: _string(_lib.badi_apps_icon_path(_handle, index)),
     );
   }
 
-  /// Copy out every app.
+  /// Copy out every app, in sort order.
   List<BadiApp> get apps => [for (var i = 0; i < length; i++) appAt(i)];
 
-  /// Launch arguments for one app. Empty when index is bad.
-  List<String> argvAt(int index) {
+  /// Apps matching `query` (blank matches all), in sort order.
+  List<BadiApp> search(String query) {
     _checkOpen();
-    final argc = _lib.badi_apps_argc(_handle, index);
-    if (argc < 0) return const [];
-    return [
-      for (var j = 0; j < argc; j++)
-        if (_string(_lib.badi_apps_argv(_handle, index, j)) case final arg?)
-          arg,
-    ];
+    return using((arena) {
+      final q = query.toNativeUtf8(allocator: arena);
+      final found = _lib.badi_apps_search(_handle, q.cast());
+      if (found == nullptr) throw StateError('badi_apps_search returned NULL (OOM)');
+      try {
+        final n = _lib.badi_found_count(found);
+        final out = <BadiApp>[];
+        for (var k = 0; k < n; k++) {
+          final i = _lib.badi_found_at(found, k);
+          if (i < 0) throw StateError('bad match at $k');
+          out.add(appAt(i));
+        }
+        return out;
+      } finally {
+        _lib.badi_found_destroy(found);
+      }
+    });
+  }
+
+  /// Spawn the app by index and return immediately. Terminal apps are
+  /// wrapped by the backend. Throws [StateError] on failure.
+  void launch(int index) {
+    _checkOpen();
+    final rc = _lib.badi_apps_launch(_handle, index);
+    if (rc != 0) throw StateError('badi_apps_launch failed ($rc)');
   }
 
   /// Decode one owned native string, freeing it. Null stays null.

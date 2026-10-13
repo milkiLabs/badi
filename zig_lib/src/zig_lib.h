@@ -11,38 +11,52 @@ extern "C" {
 /* Opaque handle owning an app scan result. */
 typedef struct BadiAppList BadiAppList;
 
-/* NULL-safe. Only for strings returned by the badi_apps_* getters. */
+/* Opaque handle owning search result indices. */
+typedef struct BadiFound BadiFound;
+
+/* NULL-safe. Only for strings returned by the getters below. */
 void badi_free_string(char *s);
 
 /*
- * Scan system + user applications dirs for launchable apps.
- * home_dir locates ~/.local/share/applications, may be NULL to skip it.
+ * Scan system + user applications dirs for launchable apps, sorted by name.
+ * $HOME locates ~/.local/share/applications (read inside the scan).
  * locale picks localized Name/Icon/Comment, may be NULL for unlocalized.
  * Returns NULL only on OOM. Free with badi_apps_destroy.
  */
-BadiAppList *badi_apps_scan(const char *home_dir, const char *locale);
+BadiAppList *badi_apps_scan(const char *locale);
 
 /* Number of apps. NULL-safe (NULL handle = 0). */
 size_t badi_apps_count(const BadiAppList *apps);
 
-/* Each getter returns an owned NUL-terminated copy, or NULL when the
- * handle/index is bad, the value is missing, or on OOM. */
+/*
+ * Each getter returns an owned NUL-terminated copy, or NULL when the
+ * handle/index is bad, the value is missing, or on OOM.
+ */
 char *badi_apps_name(const BadiAppList *apps, size_t index);
-char *badi_apps_exec(const BadiAppList *apps, size_t index);
-char *badi_apps_icon(const BadiAppList *apps, size_t index);
 char *badi_apps_comment(const BadiAppList *apps, size_t index);
-char *badi_apps_keywords(const BadiAppList *apps, size_t index);
-char *badi_apps_path(const BadiAppList *apps, size_t index);
+char *badi_apps_icon_path(const BadiAppList *apps, size_t index);
 
-/* 1 when the app must run in a terminal, 0 when not, -1 when bad. */
-int badi_apps_is_terminal(const BadiAppList *apps, size_t index);
+/*
+ * Indices of apps matching query (case-insensitive substring, NULL/blank
+ * matches all), in sort order. NULL only on OOM. Free with badi_found_destroy.
+ */
+BadiFound *badi_apps_search(const BadiAppList *apps, const char *query);
 
-/* Number of launch arguments. -1 when handle/index is bad. */
-int badi_apps_argc(const BadiAppList *apps, size_t index);
+/* Number of matches. NULL-safe (NULL handle = 0). */
+size_t badi_found_count(const BadiFound *found);
 
-/* One launch argument (0-based). NULL when out of range/bad/OOM.
- * Launch with exactly these arguments; no field codes remain. */
-char *badi_apps_argv(const BadiAppList *apps, size_t index, size_t arg);
+/* App index of match n. -1 when handle/n is bad. */
+long badi_found_at(const BadiFound *found, size_t n);
+
+/* NULL-safe. Frees a search handle. */
+void badi_found_destroy(BadiFound *found);
+
+/*
+ * Spawn the app and return immediately (no waiting). Terminal apps are
+ * wrapped in $TERMINAL -e. Returns 0 on spawn, -1 on bad handle/index or
+ * empty argv, -2 when the spawn itself fails.
+ */
+int badi_apps_launch(const BadiAppList *apps, size_t index);
 
 /* NULL-safe. Frees the handle and every app it owns. */
 void badi_apps_destroy(BadiAppList *apps);
