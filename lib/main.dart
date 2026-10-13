@@ -108,12 +108,8 @@ class _AppListBodyState extends State<AppListBody> {
       final apps = BadiApps.scan();
       try {
         final items = <_AppItem>[
-          for (var i = 0; i < apps.length; i++)
-            if (apps.getAt(i, 'Desktop Entry', 'Name') case final name?)
-              _AppItem(
-                name: name,
-                exec: apps.getAt(i, 'Desktop Entry', 'Exec') ?? '',
-              ),
+          for (final app in apps.apps)
+            _AppItem(name: app.name, exec: app.exec),
         ];
         setState(() {
           _items = items;
