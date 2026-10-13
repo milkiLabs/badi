@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Comp
+GenericName=Application Launcher
+Comment=Launcher for Linux applications
+Exec=comp
+Icon=comp
+Terminal=false
+Categories=Utility;
+Keywords=launcher;apps;applications;menu;
+StartupNotify=false
+X-GNOME-UsesNotifications=false

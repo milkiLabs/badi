@@ -4,5 +4,5 @@ zig_lib/zig-out-android/
 .dart_tool/
 build/
 notes/
-/main
-/zig_lib/main
+packaging/src/
+packaging/*.pkg.tar.*

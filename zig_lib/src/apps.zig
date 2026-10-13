@@ -151,24 +151,6 @@ fn isKnownApp(items: []const App, name: []const u8, argv: []const []const u8) bo
     return false;
 }
 
-/// Indices into `apps` whose name/comment/keywords/exec contain `query`
-/// (ASCII case-insensitive; null/blank matches all). Sorted order is kept.
-pub fn search(gpa: Allocator, items: []const App, query: ?[]const u8) Allocator.Error![]usize {
-    var out: std.ArrayList(usize) = .empty;
-    errdefer out.deinit(gpa);
-    const q = std.mem.trim(u8, query orelse "", " \t");
-    if (q.len == 0) {
-        for (items, 0..) |_, i| try out.append(gpa, i);
-        return out.toOwnedSlice(gpa);
-    }
-    const ql = try text.lowerDup(gpa, q);
-    defer gpa.free(ql);
-    for (items, 0..) |a, i| {
-        if (std.mem.indexOf(u8, a.hay, ql) != null) try out.append(gpa, i);
-    }
-    return out.toOwnedSlice(gpa);
-}
-
 pub const LaunchError = error{
     EmptyArgv,
     SpawnFailed,
@@ -244,29 +226,6 @@ fn lessByName(_: void, a: App, b: App) bool {
 // ---------------------------------------------------------------- tests
 
 const testing = std.testing;
-
-test "search matches blob, blank matches all" {
-    const haystacks = [_]App{
-        .{ .name = "Firefox", .hay = "firefox browse the web web;browser; firefox %u " },
-        .{ .name = "Terminal", .hay = "terminal shell terminal " },
-    };
-    const all = try search(testing.allocator, &haystacks, null);
-    defer testing.allocator.free(all);
-    try testing.expectEqual(@as(usize, 2), all.len);
-
-    const blank = try search(testing.allocator, &haystacks, "   ");
-    defer testing.allocator.free(blank);
-    try testing.expectEqual(@as(usize, 2), blank.len);
-
-    const fire = try search(testing.allocator, &haystacks, "FIRE");
-    defer testing.allocator.free(fire);
-    try testing.expectEqual(@as(usize, 1), fire.len);
-    try testing.expectEqual(@as(usize, 0), fire[0]);
-
-    const none = try search(testing.allocator, &haystacks, "zzz");
-    defer testing.allocator.free(none);
-    try testing.expectEqual(@as(usize, 0), none.len);
-}
 
 test "sort is case-insensitive by name" {
     var items = [_]App{

@@ -15,6 +15,7 @@
 // is created. See https://github.com/mattkae/layer_shell.dart
 // ignore_for_file: invalid_use_of_internal_member
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -22,19 +23,35 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:layer_shell/layer_shell.dart';
 
-import 'badi.dart';
+import 'session.dart';
 
-void main() {
+/// Piped stdin (`find / | badi`) opens the line picker: Enter/click prints
+/// the line to stdout and exits 0. A terminal (or empty pipe) opens the
+/// app launcher. Dart owns stdin/stdout here; filtering, selection, and
+/// launching live in the Zig session core.
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Installs ExtendedWindowingOwnerLinux globally. Must run once before
   // creating any LayershellWindowController.
   initLayerShell();
-  runWidget(const BadiShell());
+  List<String>? lines;
+  if (!stdin.hasTerminal) {
+    lines = await stdin
+        .transform(const Utf8Decoder(allowMalformed: true))
+        .transform(const LineSplitter())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) lines = null; // fall back to the app launcher
+  }
+  runWidget(BadiShell(lines: lines));
 }
 
 /// Root widget driving one centered layer-shell surface.
 class BadiShell extends StatefulWidget {
-  const BadiShell({super.key});
+  const BadiShell({super.key, this.lines});
+
+  /// Piped input lines; null selects the app launcher.
+  final List<String>? lines;
 
   @override
   State<BadiShell> createState() => _BadiShellState();
@@ -96,7 +113,7 @@ class _BadiShellState extends State<BadiShell> {
                 child: Overlay(
                   initialEntries: [
                     OverlayEntry(
-                      builder: (_) => const LauncherBody(),
+                      builder: (_) => LauncherBody(lines: widget.lines),
                     ),
                   ],
                 ),
@@ -109,23 +126,29 @@ class _BadiShellState extends State<BadiShell> {
   }
 }
 
-/// Launcher content: search field on top, virtualized selectable app list.
-/// Pure UI: listing, search, and launch all live in the Zig backend
-/// ([BadiApps]); this only renders rows and forwards events.
+/// Launcher content: search field on top, virtualized selectable list.
+/// Pure UI: filtering, selection, and launch all live in the Zig backend
+/// ([Session]); this only renders rows and forwards events. In pipe
+/// mode (`lines != null`) rows are the piped lines and activating one
+/// prints it to stdout; otherwise rows are installed applications.
 class LauncherBody extends StatefulWidget {
-  const LauncherBody({super.key});
+  const LauncherBody({super.key, this.lines});
+
+  final List<String>? lines;
 
   @override
   State<LauncherBody> createState() => _LauncherBodyState();
 }
 
 class _LauncherBodyState extends State<LauncherBody> {
-  BadiApps? _db;
-  List<BadiApp> _shown = const [];
+  Session? _s;
+  int _count = 0;
   String? _error;
   bool _loading = true;
   int _selected = 0;
   String? _launchError;
+
+  bool get _pipe => widget.lines != null;
 
   late final TextEditingController _query;
   late final FocusNode _searchFocus;
@@ -145,16 +168,18 @@ class _LauncherBodyState extends State<LauncherBody> {
     _query.dispose();
     _searchFocus.dispose();
     _scroll.dispose();
-    _db?.close();
+    _s?.close();
     super.dispose();
   }
 
   void _load() {
     try {
-      final db = BadiApps.scan();
+      final s =
+          _pipe ? Session.lines(widget.lines!) : Session.apps();
       setState(() {
-        _db = db;
-        _shown = db.apps;
+        _s = s;
+        _count = s.length;
+        _selected = s.selected;
         _loading = false;
       });
     } catch (e) {
@@ -166,11 +191,12 @@ class _LauncherBodyState extends State<LauncherBody> {
   }
 
   void _onQuery(String text) {
-    final db = _db;
-    if (db == null) return;
+    final s = _s;
+    if (s == null) return;
     setState(() {
-      _shown = db.search(text);
-      _selected = 0;
+      s.setQuery(text);
+      _count = s.length;
+      _selected = s.selected;
     });
     if (_scroll.hasClients) {
       _scroll.jumpTo(0);
@@ -191,20 +217,22 @@ class _LauncherBodyState extends State<LauncherBody> {
         _move(-1);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.enter:
-        if (_shown.isNotEmpty) {
-          _launch(_shown[_selected.clamp(0, _shown.length - 1)]);
+        if (_count > 0) {
+          _activate(_selected.clamp(0, _count - 1));
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
-        exit(0);
+        exit(_pipe ? 1 : 0);
     }
     return KeyEventResult.ignored;
   }
 
   void _move(int delta) {
-    if (_shown.isEmpty) return;
+    final s = _s;
+    if (s == null || _count == 0) return;
     setState(() {
-      _selected = (_selected + delta).clamp(0, _shown.length - 1);
+      s.move(delta);
+      _selected = s.selected;
     });
     // itemExtent is 56: keep the selection visible.
     if (_scroll.hasClients) {
@@ -214,28 +242,23 @@ class _LauncherBodyState extends State<LauncherBody> {
     }
   }
 
-  void _launch(BadiApp app) {
-    _logLaunch('tap ${app.name} [${app.index}]');
+  /// Apps mode: spawn and exit. Pipe mode: print the line and exit 0.
+  /// `exit` never flushes stdout on its own, so flush first.
+  Future<void> _activate(int i) async {
+    final s = _s;
+    if (s == null) return;
+    if (_pipe) {
+      stdout.writeln(s.result(i));
+      await stdout.flush();
+      exit(0);
+    }
     try {
-      _db?.launch(app.index);
+      s.launch(i);
     } catch (e) {
-      _logLaunch('fail ${app.name}: $e');
       if (mounted) setState(() => _launchError = 'Failed to launch: $e');
       return;
     }
-    _logLaunch('spawned ${app.name} ok, exiting');
     exit(0);
-  }
-
-  void _logLaunch(String line) {
-    try {
-      File('/tmp/badi-launcher.log').writeAsStringSync(
-        '${DateTime.now().toIso8601String()} $line\n',
-        mode: FileMode.append,
-      );
-    } catch (_) {
-      // Logging must never break launching.
-    }
   }
 
   @override
@@ -255,8 +278,8 @@ class _LauncherBodyState extends State<LauncherBody> {
               onChanged: _onQuery,
               cursorColor: const Color(0xFFFFFFFF),
               style: const TextStyle(color: Color(0xFFFFFFFF), fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: 'Search applications…',
+              decoration: InputDecoration(
+                hintText: _pipe ? 'Filter…' : 'Search applications…',
                 hintStyle: TextStyle(color: Color(0xFF6C7086), fontSize: 14),
                 border: InputBorder.none,
               ),
@@ -264,7 +287,11 @@ class _LauncherBodyState extends State<LauncherBody> {
             const SizedBox(height: 8),
             Text(
               _launchError ??
-                  (_loading ? 'Loading…' : '${_shown.length} applications'),
+                  (_loading
+                      ? 'Loading…'
+                      : _pipe
+                          ? '$_count lines'
+                          : '$_count applications'),
               style: TextStyle(
                 color: _launchError != null
                     ? const Color(0xFFF38BA8)
@@ -284,7 +311,7 @@ class _LauncherBodyState extends State<LauncherBody> {
     if (_error != null) {
       return SingleChildScrollView(
         child: Text(
-          'Failed to load applications: $_error',
+          _pipe ? 'Failed to load input: $_error' : 'Failed to load applications: $_error',
           style: const TextStyle(color: Color(0xFFF38BA8), fontSize: 13),
         ),
       );
@@ -297,7 +324,7 @@ class _LauncherBodyState extends State<LauncherBody> {
         ),
       );
     }
-    if (_shown.isEmpty) {
+    if (_count == 0) {
       return const Center(
         child: Text(
           'No match',
@@ -305,18 +332,19 @@ class _LauncherBodyState extends State<LauncherBody> {
         ),
       );
     }
+    final s = _s!;
     // Builder only builds visible rows: virtualized for long lists.
     return ListView.builder(
       controller: _scroll,
-      itemCount: _shown.length,
+      itemCount: _count,
       itemExtent: 56,
       itemBuilder: (context, i) {
-        final item = _shown[i];
+        final item = s.rowAt(i);
         final selected = i == _selected;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: GestureDetector(
-            onTap: () => _launch(item),
+            onTap: () => _activate(i),
             child: ColoredBox(
               color:
                   selected ? const Color(0xFF45475A) : const Color(0xFF313244),
@@ -330,7 +358,7 @@ class _LauncherBodyState extends State<LauncherBody> {
                       height: 36,
                       child: _AppIcon(
                         iconPath: item.iconPath,
-                        fallback: item.name,
+                        fallback: item.title,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -340,7 +368,7 @@ class _LauncherBodyState extends State<LauncherBody> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.name,
+                            item.title,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFFFFFFFF),
@@ -348,9 +376,9 @@ class _LauncherBodyState extends State<LauncherBody> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if ((item.comment ?? '').isNotEmpty)
+                          if ((item.subtitle ?? '').isNotEmpty)
                             Text(
-                              item.comment!,
+                              item.subtitle!,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFFA6ADC8),

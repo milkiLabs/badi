@@ -1,33 +1,27 @@
-//! C ABI for the launcher backend: list apps, search apps, launch apps.
+//! C ABI for the picker core: stateful sessions over scanned apps or piped
+//! input lines. Dart/Flutter renders rows and owns stdin/stdout; all
+//! filtering, selection, and launching lives here.
 //!
 //! `zig_lib.h` is the source of truth for ffigen; keep the signatures in sync.
 //!
 //! Ownership:
-//! - `badi_apps_scan` returns a heap-owned handle, free with `badi_apps_destroy`.
-//! - `badi_apps_search` returns a heap-owned handle, free with `badi_found_destroy`.
+//! - `badi_session_apps`/`badi_session_lines` return a heap-owned handle,
+//!   free with `badi_session_destroy`.
 //! - Every getter returns a heap-owned NUL-terminated copy (or NULL when
 //!   missing), free with `badi_free_string`.
 //! - All functions are null-tolerant and never panic across the FFI boundary.
 
 const std = @import("std");
-const apps = @import("apps.zig");
+const session = @import("session.zig");
 
 const c_alloc = std.heap.c_allocator;
 
-/// Opaque handle owning a scan result. ABI-identical to
-/// `struct BadiAppList` in `zig_lib.h`.
-pub const BadiAppList = opaque {};
-
-/// Opaque handle owning search result indices. ABI-identical to
-/// `struct BadiFound` in `zig_lib.h`.
-pub const BadiFound = opaque {};
+/// Opaque handle owning a picker session. ABI-identical to
+/// `struct BadiSession` in `zig_lib.h`.
+pub const BadiSession = opaque {};
 
 const Box = struct {
-    list: apps.AppList,
-};
-
-const FoundBox = struct {
-    indices: []usize,
+    s: session.Session,
 };
 
 /// Free a string from any getter. NULL-safe.
@@ -36,87 +30,126 @@ export fn badi_free_string(s: ?[*:0]u8) callconv(.c) void {
     c_alloc.free(std.mem.span(s.?));
 }
 
-/// Scan system + user `applications` dirs for launchable apps, sorted by
-/// name. `$HOME` locates `~/.local/share/applications` (read from the
-/// process environment inside the scan); `locale` (NULL = unlocalized)
-/// picks localized Name/Icon/Comment. Returns NULL only on OOM.
-/// Free with `badi_apps_destroy`.
+/// Open an apps-mode session: scan system + user `applications` dirs,
+/// sorted by name. `locale` (NULL = unlocalized) picks localized
+/// Name/Icon/Comment. Returns NULL only on OOM.
+/// Free with `badi_session_destroy`.
 ///
 /// Uses a single-threaded Io instance internally; sequential calls are fine,
 /// concurrent calls from multiple threads are not supported.
-export fn badi_apps_scan(locale: ?[*:0]const u8) callconv(.c) ?*BadiAppList {
+export fn badi_session_apps(locale: ?[*:0]const u8) callconv(.c) ?*BadiSession {
     const lang: ?[]const u8 = if (locale) |l| std.mem.span(l) else null;
     const io = std.Io.Threaded.global_single_threaded.io();
     const box = c_alloc.create(Box) catch return null;
-    box.list = apps.scan(c_alloc, io, lang) catch {
+    box.s = session.Session.initApps(c_alloc, io, lang) catch {
         c_alloc.destroy(box);
         return null;
     };
     return @ptrCast(box);
 }
 
-/// Number of apps. NULL-safe (NULL handle = 0).
-export fn badi_apps_count(handle: ?*const BadiAppList) callconv(.c) usize {
-    const box = boxOf(handle) orelse return 0;
-    return box.list.apps.len;
+/// Open a lines-mode session over `lines` (copied; caller keeps ownership).
+/// NULL lines or 0 count opens an empty session. Returns NULL only on OOM.
+/// Free with `badi_session_destroy`.
+export fn badi_session_lines(lines: ?[*]const [*:0]const u8, n: usize) callconv(.c) ?*BadiSession {
+    const box = c_alloc.create(Box) catch return null;
+    errdefer c_alloc.destroy(box);
+    if (lines) |ls| {
+        if (n > 0) {
+            const buf = c_alloc.alloc([]const u8, n) catch return null;
+            defer c_alloc.free(buf);
+            for (buf, 0..) |*slot, i| slot.* = std.mem.span(ls[i]);
+            box.s = session.Session.initLines(c_alloc, buf) catch return null;
+            return @ptrCast(box);
+        }
+    }
+    box.s = session.Session.initLines(c_alloc, &.{}) catch return null;
+    return @ptrCast(box);
 }
 
-/// App display name. NULL when handle/index is bad, or on OOM.
-export fn badi_apps_name(handle: ?*const BadiAppList, index: usize) callconv(.c) ?[*:0]u8 {
-    const app = itemOf(handle, index) orelse return null;
-    return dupe(app.name);
+/// Re-filter on `query` (NULL/blank shows all, ASCII case-insensitive
+/// substring) and reset selection to the top. Returns 0, -1 on bad handle
+/// or OOM (previous view is kept on OOM).
+export fn badi_session_query(handle: ?*BadiSession, query: ?[*:0]const u8) callconv(.c) c_int {
+    const s = sessionOf(handle) orelse return -1;
+    const q: ?[]const u8 = if (query) |x| std.mem.span(x) else null;
+    s.setQuery(q) catch return -1;
+    return 0;
 }
 
-/// Comment/description. NULL when missing/bad/OOM.
-export fn badi_apps_comment(handle: ?*const BadiAppList, index: usize) callconv(.c) ?[*:0]u8 {
-    const app = itemOf(handle, index) orelse return null;
-    const v = app.comment orelse return null;
+/// Shown row count. NULL-safe (NULL handle = 0).
+export fn badi_session_count(handle: ?*const BadiSession) callconv(.c) usize {
+    const s = sessionOfConst(handle) orelse return 0;
+    return s.count();
+}
+
+/// Shown row title. NULL when handle/row is bad, or on OOM.
+export fn badi_session_title(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
+    const e = rowOf(handle, index) orelse return null;
+    return dupe(e.title);
+}
+
+/// Shown row subtitle (app comment). NULL when missing/bad/OOM, and always
+/// NULL in lines mode.
+export fn badi_session_subtitle(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
+    const e = rowOf(handle, index) orelse return null;
+    const v = e.subtitle orelse return null;
     return dupe(v);
 }
 
-/// Resolved icon file. NULL when missing/bad/OOM.
-export fn badi_apps_icon_path(handle: ?*const BadiAppList, index: usize) callconv(.c) ?[*:0]u8 {
-    const app = itemOf(handle, index) orelse return null;
-    const v = app.icon_path orelse return null;
+/// Shown row icon file. NULL when missing/bad/OOM, and always NULL in
+/// lines mode.
+export fn badi_session_icon(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
+    const e = rowOf(handle, index) orelse return null;
+    const v = e.icon orelse return null;
     return dupe(v);
 }
 
-/// Indices of apps matching `query` (ASCII case-insensitive substring;
-/// NULL/blank matches all), in sort order. NULL only on OOM.
-/// Free with `badi_found_destroy`.
-export fn badi_apps_search(handle: ?*const BadiAppList, query: ?[*:0]const u8) callconv(.c) ?*BadiFound {
-    const box = boxOf(handle) orelse return null;
-    const q: ?[]const u8 = if (query) |s| std.mem.span(s) else null;
-    const found = c_alloc.create(FoundBox) catch return null;
-    found.indices = apps.search(c_alloc, box.list.apps, q) catch {
-        c_alloc.destroy(found);
-        return null;
+/// Move selection by `delta` rows, clamped. No-op on bad handle or empty
+/// view.
+export fn badi_session_move(handle: ?*BadiSession, delta: c_long) callconv(.c) void {
+    const s = sessionOf(handle) orelse return;
+    s.moveSelected(@intCast(delta));
+}
+
+/// Selected shown-row index, or -1 when handle is bad or the view is empty.
+export fn badi_session_selected(handle: ?*const BadiSession) callconv(.c) c_long {
+    const s = sessionOfConst(handle) orelse return -1;
+    if (s.selectedEntry() == null) return -1;
+    return @intCast(s.selected);
+}
+
+/// Spawn shown row `index` and return immediately (no waiting). Terminal
+/// apps are wrapped in `$TERMINAL -e`. Returns 0 on spawn, -1 on bad
+/// handle/row or when the row is not launchable (lines mode), -2 when the
+/// spawn itself fails.
+export fn badi_session_launch(handle: ?*BadiSession, index: usize) callconv(.c) c_int {
+    const s = sessionOf(handle) orelse return -1;
+    const io = launchIo();
+    s.launch(io, index) catch |err| {
+        if (err == error.OutOfMemory) return -2;
+        return if (err == error.EmptyArgv) -1 else -2;
     };
-    return @ptrCast(found);
+    return 0;
 }
 
-/// Number of matches. NULL-safe (NULL handle = 0).
-export fn badi_found_count(handle: ?*const BadiFound) callconv(.c) usize {
-    const h = handle orelse return 0;
-    const found: *const FoundBox = @ptrCast(@alignCast(h));
-    return found.indices.len;
+/// Selected line in lines mode, as an owned copy. NULL in apps mode or
+/// when handle/row is bad, or on OOM. Print it to stdout.
+export fn badi_session_result(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
+    const e = rowOf(handle, index) orelse return null;
+    if (e.app != null) return null; // apps mode has no result string
+    return dupe(e.title);
 }
 
-/// App index of match `n`. -1 when handle/n is bad.
-export fn badi_found_at(handle: ?*const BadiFound, n: usize) callconv(.c) c_long {
-    const h = handle orelse return -1;
-    const found: *const FoundBox = @ptrCast(@alignCast(h));
-    if (n >= found.indices.len) return -1;
-    return @intCast(found.indices[n]);
-}
-
-/// Free a handle from `badi_apps_search`. NULL-safe.
-export fn badi_found_destroy(handle: ?*BadiFound) callconv(.c) void {
+/// Free a session handle. NULL-safe.
+export fn badi_session_destroy(handle: ?*BadiSession) callconv(.c) void {
     const h = handle orelse return;
-    const found: *FoundBox = @ptrCast(@alignCast(h));
-    c_alloc.free(found.indices);
-    c_alloc.destroy(found);
+    const box: *Box = @ptrCast(@alignCast(h));
+    box.s.deinit();
+    c_alloc.destroy(box);
 }
+
+// ---------------------------------------------------------------- helpers
 
 /// Spawn-capable Io: `global_single_threaded` uses a failing allocator,
 /// which `process.spawn` needs. Initialized once, lives until process exit
@@ -132,40 +165,22 @@ fn launchIo() std.Io {
     return threaded_storage.io();
 }
 
-/// Spawn the app and return immediately (no waiting). Terminal apps are
-/// wrapped in `$TERMINAL -e` (NULL/empty falls back to "x-terminal-emulator").
-/// Returns 0 on spawn, -1 on bad handle/index or empty argv, -2 when the
-/// spawn itself fails.
-export fn badi_apps_launch(handle: ?*const BadiAppList, index: usize) callconv(.c) c_int {
-    const app = itemOf(handle, index) orelse return -1;
-    const io = launchIo();
-    const term = apps.getenv("TERMINAL");
-    apps.launch(c_alloc, io, app.*, term) catch |err| {
-        if (err == error.OutOfMemory) return -2;
-        return if (err == error.EmptyArgv) -1 else -2;
-    };
-    return 0;
-}
-
-/// Free a handle from `badi_apps_scan`. NULL-safe.
-export fn badi_apps_destroy(handle: ?*BadiAppList) callconv(.c) void {
-    const h = handle orelse return;
-    const box: *Box = @ptrCast(@alignCast(h));
-    box.list.deinit();
-    c_alloc.destroy(box);
-}
-
-// ---------------------------------------------------------------- helpers
-
-fn boxOf(handle: ?*const BadiAppList) ?*const Box {
+fn sessionOf(handle: ?*BadiSession) ?*session.Session {
     const h = handle orelse return null;
-    return @ptrCast(@alignCast(h));
+    const box: *Box = @ptrCast(@alignCast(h));
+    return &box.s;
 }
 
-fn itemOf(handle: ?*const BadiAppList, index: usize) ?*const apps.App {
-    const box = boxOf(handle) orelse return null;
-    if (index >= box.list.apps.len) return null;
-    return &box.list.apps[index];
+fn sessionOfConst(handle: ?*const BadiSession) ?*const session.Session {
+    const h = handle orelse return null;
+    const box: *const Box = @ptrCast(@alignCast(h));
+    return &box.s;
+}
+
+fn rowOf(handle: ?*const BadiSession, index: usize) ?session.Entry {
+    // Entry is a plain value of borrowed slices; copying it out is safe.
+    const s = sessionOfConst(handle) orelse return null;
+    return s.row(index);
 }
 
 fn dupe(s: []const u8) ?[*:0]u8 {

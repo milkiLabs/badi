@@ -1,30 +1,27 @@
 const std = @import("std");
-const apps = @import("apps.zig");
+const session = @import("session.zig");
 
 pub fn main(init: std.process.Init) !void {
     const gpa = init.gpa;
     const io = init.io;
 
-    var list = try apps.scan(gpa, io, null);
-    defer list.deinit();
+    var s = try session.Session.initApps(gpa, io, null);
+    defer s.deinit();
 
     var stdout_buffer: [4096]u8 = undefined;
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
     const out = &stdout_writer.interface;
 
-    try out.print("found {d} apps\n", .{list.apps.len});
-    for (list.apps[0..@min(list.apps.len, 5)]) |app| {
-        try out.print("  {s} icon={s}\n", .{ app.name, app.icon_path orelse "(none)" });
-        try out.print("    argv:", .{});
-        for (app.argv) |a| try out.print(" [{s}]", .{a});
-        try out.print("\n", .{});
+    try out.print("found {d} apps\n", .{s.count()});
+    for (0..@min(s.count(), 5)) |i| {
+        const e = s.row(i).?;
+        try out.print("  {s} icon={s}\n", .{ e.title, e.icon orelse "(none)" });
     }
 
-    const hits = try apps.search(gpa, list.apps, "term");
-    defer gpa.free(hits);
-    try out.print("search \"term\": {d} hits\n", .{hits.len});
-    for (hits[0..@min(hits.len, 3)]) |i| {
-        try out.print("  {s}\n", .{list.apps[i].name});
+    try s.setQuery("term");
+    try out.print("search \"term\": {d} hits\n", .{s.count()});
+    for (0..@min(s.count(), 3)) |i| {
+        try out.print("  {s}\n", .{s.row(i).?.title});
     }
 
     try out.flush();

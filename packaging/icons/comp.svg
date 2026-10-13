@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PLACEHOLDER: replace with real artwork before publishing to the AUR. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect x="8" y="8" width="112" height="112" rx="26" fill="#2b303b"/>
+  <rect x="30" y="30" width="30" height="30" rx="7" fill="#7aa2f7"/>
+  <rect x="68" y="30" width="30" height="30" rx="7" fill="#9ece6a"/>
+  <rect x="30" y="68" width="30" height="30" rx="7" fill="#e0af68"/>
+  <rect x="68" y="68" width="30" height="30" rx="7" fill="#f7768e"/>
+</svg>

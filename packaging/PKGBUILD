@@ -1,0 +1,75 @@
+# Maintainer: MuhammadSwa <muhammadatefsw@protonmail.com>
+pkgname=comp
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Launcher for Linux applications"
+arch=('x86_64')
+url="https://github.com/milkiLabs/badi"
+license=('MIT')
+# gtk-layer-shell is a hard build- and runtime dependency: the UI is a
+# wlr-layer-shell surface, so it will not start without it.
+depends=('gtk3' 'gtk-layer-shell')
+makedepends=('flutter' 'zig' 'cmake' 'ninja' 'pkgconf' 'git')
+# The Flutter engine and our Zig library ship as prebuilt shared objects;
+# stripping them breaks nothing useful and `strip` on the bundle is a
+# common source of hard-to-debug breakage.
+options=('!strip' '!debug')
+source=()
+sha256sums=()
+
+# This PKGBUILD lives in packaging/, so makepkg's $srcdir is packaging/src and
+# the real project root is two levels up.
+# NOTE: $srcdir is not yet set when a PKGBUILD is sourced at top level, so this
+# must be resolved inside a function, not in the top-level body.
+_project_root() { realpath "$srcdir/../.."; }
+
+build() {
+  local root _flutter_bundle
+  root="$(_project_root)"
+  _flutter_bundle="$root/build/linux/x64/release/bundle"
+  cd "$root"
+
+  # 1. Build the Zig FFI library first. Flutter's linux/CMakeLists.txt picks it
+  #    up from zig-out/lib/ at *install* time and only warns if it is missing,
+  #    so a stale Debug .so silently ships if we skip this.
+  #    build_zig.sh does not forward -Doptimize, so call zig directly.
+  pushd zig_lib >/dev/null
+  zig build -Doptimize=ReleaseFast
+  popd >/dev/null
+
+  # 2. Build the Flutter release bundle. --release uses AOT (libapp.so) rather
+  #    than the much larger JIT kernel_blob.
+  flutter build linux --release
+
+  # 3. Fail loudly rather than packaging a bundle with a missing FFI library.
+  test -f "$_flutter_bundle/lib/libzig_lib.so" \
+    || { echo "ERROR: libzig_lib.so missing from bundle" >&2; exit 1; }
+  test -f "$_flutter_bundle/lib/libapp.so" \
+    || { echo "ERROR: libapp.so missing from bundle (not an AOT build?)" >&2; exit 1; }
+}
+
+package() {
+  local root destdir
+  root="$(_project_root)"
+
+  # The bundle layout is load-bearing: the executable uses RUNPATH=$ORIGIN/lib
+  # and lib/zig.dart resolves libzig_lib.so relative to Platform.resolvedExecutable
+  # (which resolves symlinks). So the whole bundle has to stay together under
+  # /usr/lib/comp, with /usr/bin/comp as a symlink into it.
+  destdir="$pkgdir/usr/lib/comp"
+
+  install -d "$destdir"
+  cp -r "$root/build/linux/x64/release/bundle/." "$destdir/"
+
+  # Shared libraries need the executable bit to be usable by tooling (ldd,
+  # debuggers, some loaders). Flutter's CMake install leaves them 0644.
+  chmod 755 "$destdir/lib/"*.so
+
+  install -Dm644 "$root/packaging/comp.desktop" \
+    "$pkgdir/usr/share/applications/comp.desktop"
+  install -Dm644 "$root/packaging/icons/comp.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/comp.svg"
+
+  install -d "$pkgdir/usr/bin"
+  ln -s /usr/lib/comp/comp "$pkgdir/usr/bin/comp"
+}
