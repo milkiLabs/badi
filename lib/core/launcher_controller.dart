@@ -128,6 +128,17 @@ class LauncherController extends ChangeNotifier {
     _notify();
   }
 
+  /// Point the cursor at row `i` (mouse hover), clamped to the view.
+  /// No-op when empty or already there (avoids rebuild storms while the
+  /// pointer sweeps across rows).
+  void select(int i) {
+    if (_count == 0) return;
+    final next = i.clamp(0, _count - 1);
+    if (next == _selected) return;
+    _selected = next;
+    _notify();
+  }
+
   /// Activate row `i`: pipe mode prints the line, apps mode spawns the
   /// launch target. Failures surface as [actionError]; success exits inside
   /// the actions implementation.

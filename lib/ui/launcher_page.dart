@@ -173,9 +173,7 @@ class _LauncherBodyState extends State<LauncherBody> {
                       (loading
                           ? 'Loading…'
                           : pipeMode
-                              ? (streamDone
-                                  ? '$count lines'
-                                  : '$count lines…')
+                              ? (streamDone ? '$count lines' : '$count lines…')
                               : '$count applications'),
                   style: actionError != null
                       ? AppTextStyles.statusError
@@ -209,7 +207,9 @@ class _LauncherBodyState extends State<LauncherBody> {
     if (error != null) {
       return SingleChildScrollView(
         child: Text(
-          pipeMode ? 'Failed to load input: $error' : 'Failed to load applications: $error',
+          pipeMode
+              ? 'Failed to load input: $error'
+              : 'Failed to load applications: $error',
           style: AppTextStyles.statusError,
         ),
       );
@@ -234,44 +234,48 @@ class _LauncherBodyState extends State<LauncherBody> {
         final isSelected = i == selected;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
-          child: GestureDetector(
-            onTap: () => unawaited(_controller.activate(i)),
-            child: ColoredBox(
-              color: isSelected ? AppColors.selectedRow : AppColors.row,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: AppIcon(
-                        iconPath: item.iconPath,
-                        fallback: item.title,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: (_) => _controller.select(i),
+            child: GestureDetector(
+              onTap: () => unawaited(_controller.activate(i)),
+              child: ColoredBox(
+                color: isSelected ? AppColors.selectedRow : AppColors.row,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: AppIcon(
+                          iconPath: item.iconPath,
+                          fallback: item.title,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.rowTitle,
-                          ),
-                          if ((item.subtitle ?? '').isNotEmpty)
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              item.subtitle!,
+                              item.title,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.rowSubtitle,
+                              style: AppTextStyles.rowTitle,
                             ),
-                        ],
+                            if ((item.subtitle ?? '').isNotEmpty)
+                              Text(
+                                item.subtitle!,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.rowSubtitle,
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
