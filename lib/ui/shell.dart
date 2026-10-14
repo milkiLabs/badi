@@ -3,14 +3,15 @@
 //
 // The daemon drives layer-shell surfaces via [ViewCollection]: an always-on
 // top bar (exclusive zone, no keyboard), an on-demand centered launcher
-// (overlay, exclusive keyboard), and an on-demand wifi popup (overlay, no
-// keyboard) anchored under the wifi icon. Controllers are created inside
-// the widget tree (State.initState / listeners), never in main(), so GTK
+// (overlay, exclusive keyboard), and reusable popup surfaces (overlay, no
+// keyboard) anchored to the top-right. Controllers are created inside the
+// widget tree (State.initState / listeners), never in main(), so GTK
 // windowing is fully up before the first surface is created.
 // See https://github.com/mattkae/layer_shell.dart
 // ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:async';
+import 'dart:ffi' as ffi;
 
 import 'package:layer_shell/layer_shell.dart';
 import 'package:material_ui/material_ui.dart';
@@ -20,6 +21,7 @@ import '../shell/shell_controller.dart';
 import 'app_theme.dart';
 import 'bar_page.dart';
 import 'launcher_page.dart';
+import 'popup_window.dart';
 import 'wifi_popup.dart';
 
 /// Shared dark theme for every shell surface. Each [LayerShellWindow] needs
@@ -44,13 +46,9 @@ class BadiShell extends StatefulWidget {
   State<BadiShell> createState() => _BadiShellState();
 }
 
-class _BadiShellState extends State<BadiShell> {
+class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell> {
   late final LayershellWindowController _bar;
   LayershellWindowController? _launcher;
-  LayershellWindowController? _wifiPopup;
-  Timer? _wifiHideTimer;
-  bool _wifiHoveringIcon = false;
-  bool _wifiHoveringPopup = false;
 
   @override
   void initState() {
@@ -106,72 +104,34 @@ class _BadiShellState extends State<BadiShell> {
     );
   }
 
-  void _setWifiIconHover(bool hovering) {
-    _wifiHoveringIcon = hovering;
-    if (hovering) {
-      _wifiHideTimer?.cancel();
-      _wifiHideTimer = null;
-      _showWifiPopup();
-    } else {
-      _scheduleHideWifiPopup();
+  @override
+  LayershellWindowController createPopupControllerForKey(
+    String key,
+    ffi.Pointer<ffi.NativeType>? monitor,
+  ) {
+    switch (key) {
+      case 'wifi':
+        return LayershellWindowController(
+          layer: LayerShellLayer.overlay,
+          anchorEdges: const [LayerShellEdge.top, LayerShellEdge.right],
+          keyboardMode: LayerShellKeyboardMode.none,
+          width: wifiPopupConfig.width,
+          height: wifiPopupConfig.height,
+          exclusiveZone: wifiPopupConfig.exclusiveZone,
+          monitor: monitor,
+          namespace: wifiPopupConfig.namespace,
+        );
+      default:
+        throw ArgumentError('Unknown popup key: $key');
     }
-  }
-
-  void _setWifiPopupHover(bool hovering) {
-    _wifiHoveringPopup = hovering;
-    if (hovering) {
-      _wifiHideTimer?.cancel();
-      _wifiHideTimer = null;
-    } else {
-      _scheduleHideWifiPopup();
-    }
-  }
-
-  void _scheduleHideWifiPopup() {
-    _wifiHideTimer?.cancel();
-    _wifiHideTimer = Timer(const Duration(milliseconds: 200), () {
-      if (!_wifiHoveringIcon && !_wifiHoveringPopup) {
-        _hideWifiPopup();
-      }
-      _wifiHideTimer = null;
-    });
-  }
-
-  void _showWifiPopup() {
-    if (_wifiPopup != null) return;
-    final monitor = listMonitors().firstOrNull;
-    _wifiPopup = LayershellWindowController(
-      layer: LayerShellLayer.overlay,
-      anchorEdges: const [
-        LayerShellEdge.top,
-        LayerShellEdge.right,
-      ],
-      keyboardMode: LayerShellKeyboardMode.none,
-      width: 220,
-      height: 140,
-      exclusiveZone: 0,
-      monitor: monitor?.gdkMonitor,
-      namespace: 'badi-wifi-popup',
-    );
-    setState(() {});
-  }
-
-  void _hideWifiPopup() {
-    if (_wifiPopup == null) return;
-    _wifiPopup!.destroy();
-    _wifiPopup = null;
-    _wifiHoveringIcon = false;
-    _wifiHoveringPopup = false;
-    setState(() {});
   }
 
   @override
   void dispose() {
     widget.shell.removeListener(_syncLauncher);
     _launcher?.destroy();
-    _wifiPopup?.destroy();
-    _wifiHideTimer?.cancel();
     _bar.destroy();
+    disposePopups();
     super.dispose();
   }
 
@@ -179,6 +139,8 @@ class _BadiShellState extends State<BadiShell> {
   Widget build(BuildContext context) {
     final launcher = _launcher;
     final actions = widget.shell.currentActions;
+    final wifiPopup =
+        buildPopupView('wifi', wifiPopupConfig, const WifiPopupContent());
     return ViewCollection(
       views: [
         LayerShellWindow(
@@ -186,8 +148,7 @@ class _BadiShellState extends State<BadiShell> {
           child: _surface(
             home: BarBody(
               onOpenLauncher: _openFromBar,
-              onWifiHover: () => _setWifiIconHover(true),
-              onWifiExit: () => _setWifiIconHover(false),
+              onWifiHover: (hovering) => onTriggerHover('wifi', hovering),
             ),
           ),
         ),
@@ -202,13 +163,7 @@ class _BadiShellState extends State<BadiShell> {
               ),
             ),
           ),
-        if (_wifiPopup != null)
-          LayerShellWindow(
-            controller: _wifiPopup!,
-            child: _surface(
-              home: WifiPopup(onHoverChanged: _setWifiPopupHover),
-            ),
-          ),
+        if (wifiPopup != null) wifiPopup,
       ],
     );
   }

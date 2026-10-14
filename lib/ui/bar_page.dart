@@ -7,12 +7,10 @@ class BarBody extends StatelessWidget {
     super.key,
     required this.onOpenLauncher,
     required this.onWifiHover,
-    required this.onWifiExit,
   });
 
   final VoidCallback onOpenLauncher;
-  final VoidCallback onWifiHover;
-  final VoidCallback onWifiExit;
+  final ValueChanged<bool> onWifiHover;
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +29,8 @@ class BarBody extends StatelessWidget {
             ),
             const Spacer(),
             MouseRegion(
-              onEnter: (_) => onWifiHover(),
-              onExit: (_) => onWifiExit(),
+              onEnter: (_) => onWifiHover(true),
+              onExit: (_) => onWifiHover(false),
               cursor: SystemMouseCursors.basic,
               child: const Icon(Icons.wifi, color: AppColors.body, size: 18),
             ),
