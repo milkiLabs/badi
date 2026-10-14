@@ -9,8 +9,8 @@ import 'batch.dart';
 import 'session.dart';
 
 /// Launcher content: search field on top, virtualized selectable list.
-/// Pure UI: filtering, selection, and launch all live in the Zig backend
-/// ([Session]); this only renders rows and forwards events. In pipe mode
+/// Pure UI: filtering lives in the Zig backend ([Session]); the selection
+/// cursor lives here and spawning lives in [LauncherActions]. In pipe mode
 /// (`piped != null`) rows stream in from stdin and activating one completes
 /// via [LauncherActions]; otherwise rows are installed applications.
 ///
@@ -123,7 +123,7 @@ class _LauncherBodyState extends State<LauncherBody> {
       setState(() {
         if (q.isNotEmpty) s.setQuery(q);
         _count = s.length;
-        _selected = s.selected;
+        _selected = 0;
         _loading = false;
       });
     } catch (e) {
@@ -148,7 +148,7 @@ class _LauncherBodyState extends State<LauncherBody> {
       _s = s;
       setState(() {
         _count = s.length;
-        _selected = s.selected;
+        _selected = 0;
         _loading = false;
       });
     } catch (e) {
@@ -165,14 +165,14 @@ class _LauncherBodyState extends State<LauncherBody> {
   }
 
   /// One input batch arrived: extend the session, refresh the view.
-  /// Selection is untouched by appends (Zig side), so only counts sync.
+  /// The cursor is frontend-owned and untouched by appends (existing rows
+  /// never move), so only counts sync.
   void _onBatch(List<String> batch) {
     final s = _s;
     if (s == null || !mounted) return;
     setState(() {
       s.append(batch);
       _count = s.length;
-      _selected = s.selected;
     });
   }
 
@@ -202,7 +202,7 @@ class _LauncherBodyState extends State<LauncherBody> {
     setState(() {
       s.setQuery(text);
       _count = s.length;
-      _selected = s.selected;
+      _selected = 0;
     });
     if (_scroll.hasClients) {
       _scroll.jumpTo(0);
@@ -235,11 +235,9 @@ class _LauncherBodyState extends State<LauncherBody> {
   }
 
   void _move(int delta) {
-    final s = _s;
-    if (s == null || _count == 0) return;
+    if (_count == 0) return;
     setState(() {
-      s.move(delta);
-      _selected = s.selected;
+      _selected = (_selected + delta).clamp(0, _count - 1);
     });
     // itemExtent is 56: keep the selection visible.
     if (_scroll.hasClients) {
@@ -250,8 +248,8 @@ class _LauncherBodyState extends State<LauncherBody> {
   }
 
   /// Forward the activation to [LauncherActions]: pipe mode prints the
-  /// line, apps mode spawns. Failures surface as an error row; success
-  /// exits inside the actions implementation.
+  /// line, apps mode spawns the launch target. Failures surface as an
+  /// error row; success exits inside the actions implementation.
   Future<void> _activate(int i) async {
     final s = _s;
     if (s == null) return;
@@ -264,7 +262,7 @@ class _LauncherBodyState extends State<LauncherBody> {
       return;
     }
     try {
-      await widget.actions.completeWithApp(s, i);
+      await widget.actions.completeWithApp(s.target(i));
     } catch (e) {
       if (mounted) setState(() => _actionError = 'Failed to launch: $e');
     }

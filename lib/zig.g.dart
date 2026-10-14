@@ -69,6 +69,42 @@ class ZigLib {
   late final _badi_session_apps = _badi_session_appsPtr
       .asFunction<ffi.Pointer<BadiSession> Function(ffi.Pointer<ffi.Char>)>();
 
+  ffi.Pointer<ffi.Char> badi_session_arg(
+    ffi.Pointer<BadiSession> session,
+    int index,
+    int arg,
+  ) {
+    return _badi_session_arg(
+      session,
+      index,
+      arg,
+    );
+  }
+
+  late final _badi_session_argPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, ffi.Size,
+              ffi.Size)>>('badi_session_arg');
+  late final _badi_session_arg = _badi_session_argPtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int, int)>();
+
+  int badi_session_arg_count(
+    ffi.Pointer<BadiSession> session,
+    int index,
+  ) {
+    return _badi_session_arg_count(
+      session,
+      index,
+    );
+  }
+
+  late final _badi_session_arg_countPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Size Function(
+              ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_arg_count');
+  late final _badi_session_arg_count = _badi_session_arg_countPtr
+      .asFunction<int Function(ffi.Pointer<BadiSession>, int)>();
+
   int badi_session_count(
     ffi.Pointer<BadiSession> session,
   ) {
@@ -82,6 +118,23 @@ class ZigLib {
           'badi_session_count');
   late final _badi_session_count = _badi_session_countPtr
       .asFunction<int Function(ffi.Pointer<BadiSession>)>();
+
+  ffi.Pointer<ffi.Char> badi_session_cwd(
+    ffi.Pointer<BadiSession> session,
+    int index,
+  ) {
+    return _badi_session_cwd(
+      session,
+      index,
+    );
+  }
+
+  late final _badi_session_cwdPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+              ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_cwd');
+  late final _badi_session_cwd = _badi_session_cwdPtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int)>();
 
   void badi_session_destroy(
     ffi.Pointer<BadiSession> session,
@@ -114,21 +167,21 @@ class ZigLib {
   late final _badi_session_icon = _badi_session_iconPtr.asFunction<
       ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int)>();
 
-  int badi_session_launch(
+  int badi_session_is_terminal(
     ffi.Pointer<BadiSession> session,
     int index,
   ) {
-    return _badi_session_launch(
+    return _badi_session_is_terminal(
       session,
       index,
     );
   }
 
-  late final _badi_session_launchPtr = _lookup<
+  late final _badi_session_is_terminalPtr = _lookup<
       ffi.NativeFunction<
           ffi.Int Function(
-              ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_launch');
-  late final _badi_session_launch = _badi_session_launchPtr
+              ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_is_terminal');
+  late final _badi_session_is_terminal = _badi_session_is_terminalPtr
       .asFunction<int Function(ffi.Pointer<BadiSession>, int)>();
 
   ffi.Pointer<BadiSession> badi_session_lines(
@@ -148,23 +201,6 @@ class ZigLib {
   late final _badi_session_lines = _badi_session_linesPtr.asFunction<
       ffi.Pointer<BadiSession> Function(
           ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
-
-  void badi_session_move(
-    ffi.Pointer<BadiSession> session,
-    int delta,
-  ) {
-    return _badi_session_move(
-      session,
-      delta,
-    );
-  }
-
-  late final _badi_session_movePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Pointer<BadiSession>, ffi.Long)>>('badi_session_move');
-  late final _badi_session_move = _badi_session_movePtr
-      .asFunction<void Function(ffi.Pointer<BadiSession>, int)>();
 
   int badi_session_query(
     ffi.Pointer<BadiSession> session,
@@ -199,20 +235,6 @@ class ZigLib {
               ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_result');
   late final _badi_session_result = _badi_session_resultPtr.asFunction<
       ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int)>();
-
-  int badi_session_selected(
-    ffi.Pointer<BadiSession> session,
-  ) {
-    return _badi_session_selected(
-      session,
-    );
-  }
-
-  late final _badi_session_selectedPtr =
-      _lookup<ffi.NativeFunction<ffi.Long Function(ffi.Pointer<BadiSession>)>>(
-          'badi_session_selected');
-  late final _badi_session_selected = _badi_session_selectedPtr
-      .asFunction<int Function(ffi.Pointer<BadiSession>)>();
 
   ffi.Pointer<ffi.Char> badi_session_subtitle(
     ffi.Pointer<BadiSession> session,

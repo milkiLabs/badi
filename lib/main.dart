@@ -23,7 +23,7 @@ import 'shell.dart';
 /// Piped stdin (`find / | badi`) opens the line picker: lines stream into
 /// the list live, Enter/click prints the line to stdout and exits 0. A
 /// terminal (or an empty pipe) opens the app launcher. Dart owns stdin and
-/// stdout here; filtering, selection, and launching live in the Zig
+/// stdout, the selection cursor, and spawning; filtering lives in the Zig
 /// session core, which grows incrementally per input batch.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

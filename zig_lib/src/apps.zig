@@ -151,72 +151,13 @@ fn isKnownApp(items: []const App, name: []const u8, argv: []const []const u8) bo
     return false;
 }
 
-pub const LaunchError = error{
-    EmptyArgv,
-    SpawnFailed,
-} || Allocator.Error;
-
-/// One lookup source for process env (e.g. `$HOME`, `$TERMINAL`); null
-/// when missing. Reads libc directly: no allocation, no failure, no Io.
+/// One lookup source for process env (e.g. `$HOME`); null when missing.
+/// Reads libc directly: no allocation, no failure, no Io. Used only to
+/// locate data dirs during `scan`; spawning (and its environment) is the
+/// frontend's job.
 pub fn getenv(key: [:0]const u8) ?[]const u8 {
     const v = std.c.getenv(key.ptr) orelse return null;
     return std.mem.span(v);
-}
-
-/// The live process environment as an `Environ.Map`, built once from libc
-/// `environ` and cached for the life of the process. Every spawn gets this
-/// map explicitly: the library's internal Io defaults to an empty
-/// environment (which is what produced children with no HOME/DISPLAY/DBUS
-/// locale), so children never rely on inheritance. Linux-only, like the
-/// rest of this backend. Backed by the C allocator, so there is nothing to
-/// free; sequential use only, like the rest of this API.
-var env_map_storage: std.process.Environ.Map = undefined;
-var env_map_ready = false;
-
-fn launchEnv() *const std.process.Environ.Map {
-    if (!env_map_ready) {
-        env_map_storage = .init(std.heap.c_allocator);
-        var i: usize = 0;
-        while (std.c.environ[i]) |entry| : (i += 1) {
-            const line = std.mem.span(entry);
-            const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
-            if (eq == 0) continue;
-            // OOM here degrades to a partial map rather than failing the
-            // spawn; the alternative is refusing to launch at all.
-            env_map_storage.put(line[0..eq], line[eq + 1 ..]) catch break;
-        }
-        env_map_ready = true;
-    }
-    return &env_map_storage;
-}
-
-/// Spawn `app` and return immediately (no waiting: the child outlives the
-/// launcher). `terminal_emulator` wraps terminal apps (`$TERMINAL`
-/// resolved by the caller, null falls back to "x-terminal-emulator").
-pub fn launch(gpa: Allocator, io: std.Io, item: App, terminal_emulator: ?[]const u8) LaunchError!void {
-    if (item.argv.len == 0) return error.EmptyArgv;
-    var argv: std.ArrayList([]const u8) = .empty;
-    defer argv.deinit(gpa);
-    if (item.terminal) {
-        try argv.append(gpa, terminal_emulator orelse "x-terminal-emulator");
-        try argv.append(gpa, "-e");
-    }
-    try argv.appendSlice(gpa, item.argv);
-    const cwd: std.process.Child.Cwd = if (item.path) |p| .{ .path = p } else .inherit;
-    // The child must not inherit our pipes: they close when the launcher
-    // exits, and inheriting them is exactly how GUI apps used to die on
-    // their first log write. /dev/null never breaks.
-    _ = std.process.spawn(io, .{
-        .argv = argv.items,
-        .cwd = cwd,
-        .environ_map = launchEnv(),
-        .stdin = .ignore,
-        .stdout = .ignore,
-        .stderr = .ignore,
-    }) catch |err| {
-        if (err == error.OutOfMemory) return error.OutOfMemory;
-        return error.SpawnFailed;
-    };
 }
 
 fn lessByName(_: void, a: App, b: App) bool {
@@ -239,18 +180,10 @@ test "sort is case-insensitive by name" {
     try testing.expectEqualStrings("vlc", items[2].name);
 }
 
-test "launch rejects empty argv" {
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try testing.expectError(error.EmptyArgv, launch(testing.allocator, io, .{ .name = "X" }, null));
-}
-
-test "launch env carries parent variables" {
+test "getenv reads libc directly" {
     const path = getenv("PATH");
     try testing.expect(path != null and path.?.len > 0);
     try testing.expect(getenv("BADI_NO_SUCH_VAR_XYZ") == null);
-    // The spawn map is built from the same source, so it agrees.
-    // (Process-lifetime cache on the C allocator: nothing to free.)
-    try testing.expectEqualStrings(path.?, launchEnv().get("PATH").?);
 }
 
 test "same name and argv counts as known app" {

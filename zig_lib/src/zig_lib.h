@@ -31,8 +31,9 @@ BadiSession *badi_session_lines(const char *const *lines, size_t n);
 
 /*
  * Re-filter on query (NULL/blank shows all, ASCII case-insensitive
- * substring) and reset selection to the top. Returns 0, -1 on bad
- * handle or OOM (previous view is kept on OOM).
+ * substring). Returns 0, -1 on bad handle or OOM (previous view is kept
+ * on OOM). The frontend owns the selection cursor and resets it after
+ * calling this.
  */
 int badi_session_query(BadiSession *session, const char *query);
 
@@ -48,27 +49,38 @@ char *badi_session_title(const BadiSession *session, size_t index);
 char *badi_session_subtitle(const BadiSession *session, size_t index);
 char *badi_session_icon(const BadiSession *session, size_t index);
 
-/* Move selection by delta rows, clamped. No-op on bad handle/empty view. */
-void badi_session_move(BadiSession *session, long delta);
-
 /*
  * Append piped lines to a lines-mode session (copied). Newcomers matching
- * the active query join the view in arrival order; selection is untouched.
+ * the active query join the view in arrival order; existing rows never
+ * move, so a frontend-owned cursor stays valid.
  * Returns 0, -1 on bad handle, wrong mode (apps sessions), or OOM.
  * Empty appends are a no-op.
  */
 int badi_session_append(BadiSession *session, const char *const *lines, size_t n);
 
-/* Selected shown-row index, or -1 when handle is bad or view is empty. */
-long badi_session_selected(const BadiSession *session);
+/* Launch argv length for shown row `index`. 0 when bad or not launchable. */
+size_t badi_session_arg_count(const BadiSession *session, size_t index);
 
 /*
- * Spawn shown row index and return immediately (no waiting). Terminal apps
- * are wrapped in $TERMINAL -e. Returns 0 on spawn, -1 on bad handle/row
- * or when the row is not launchable (lines mode), -2 when the spawn
- * itself fails.
+ * One launch argument as an owned copy. NULL when handle/row/arg is bad,
+ * the row is not launchable (lines mode), or on OOM. The frontend spawns
+ * it (wrapping in $TERMINAL -e when badi_session_is_terminal is 1,
+ * launching in badi_session_cwd when non-NULL).
  */
-int badi_session_launch(BadiSession *session, size_t index);
+char *badi_session_arg(const BadiSession *session, size_t index, size_t arg);
+
+/*
+ * Whether shown row `index` wants a terminal wrapper: 1 when terminal,
+ * 0 when not, -1 when handle/row is bad or not launchable (lines mode).
+ */
+int badi_session_is_terminal(const BadiSession *session, size_t index);
+
+/*
+ * Working directory to launch shown row `index` in, as an owned copy.
+ * NULL when unset, bad, not launchable (lines mode), or on OOM.
+ * NULL means inherit.
+ */
+char *badi_session_cwd(const BadiSession *session, size_t index);
 
 /*
  * Selected line in lines mode, as an owned copy: print it to stdout.

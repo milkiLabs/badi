@@ -23,14 +23,33 @@ class SessionRow {
   final String? iconPath;
 }
 
-/// Owning handle for a picker session. Filtering, selection, and launching
-/// live in the Zig backend; this class only copies strings out and forwards
-/// calls. Pipe mode and app mode share this one type:
+/// What to spawn for one apps-mode row. Plain data: any frontend can
+/// construct or consume this without touching the session handle.
+class LaunchTarget {
+  const LaunchTarget({
+    required this.argv,
+    required this.terminal,
+    this.cwd,
+  });
+
+  /// Launch arguments (`Exec` expanded, field codes resolved).
+  final List<String> argv;
+
+  /// Whether to wrap in a terminal emulator (`Terminal=true`).
+  final bool terminal;
+
+  /// Working directory (`Path=`), or null to inherit.
+  final String? cwd;
+}
+
+/// Owning handle for a picker session. Filtering lives in the Zig backend;
+/// the selection cursor and spawning live here, in the frontend. Pipe mode
+/// and app mode share this one type:
 /// ```dart
 /// final s = Session.lines(['foo', 'bar']);
 /// try {
 ///   s.setQuery('ba');
-///   print(s.rowAt(s.selected).title); // bar
+///   print(s.rowAt(0).title); // bar
 /// } finally {
 ///   s.close();
 /// }
@@ -91,7 +110,8 @@ class Session implements Finalizable {
 
   /// Append piped lines (copied). Lines mode only; throws [StateError]
   /// otherwise or on OOM. Empty input is a no-op. Newcomers matching the
-  /// active query join the view; selection is untouched.
+  /// active query join the view; existing rows never move, so a
+  /// frontend-owned cursor stays valid.
   void append(List<String> lines) {
     _checkOpen();
     if (lines.isEmpty) return;
@@ -104,7 +124,8 @@ class Session implements Finalizable {
     });
   }
 
-  /// Re-filter on `query` (blank shows all) and reset selection to the top.
+  /// Re-filter on `query` (blank shows all). The caller owns the cursor
+  /// and resets it after calling this.
   /// Throws [StateError] on OOM.
   void setQuery(String query) {
     _checkOpen();
@@ -135,24 +156,25 @@ class Session implements Finalizable {
     );
   }
 
-  /// Move selection by `delta` rows, clamped. No-op when empty.
-  void move(int delta) {
+  /// Launch target for shown row `i` (argv, terminal flag, working dir).
+  /// Apps mode only; throws [StateError] when the row is bad, not
+  /// launchable (lines mode), or a getter fails.
+  LaunchTarget target(int i) {
     _checkOpen();
-    _lib.badi_session_move(_handle, delta);
-  }
-
-  /// Selected shown-row index, or -1 when empty.
-  int get selected {
-    _checkOpen();
-    return _lib.badi_session_selected(_handle);
-  }
-
-  /// Spawn row `i` and return immediately. Apps mode only.
-  /// Throws [StateError] on failure (lines mode included: nothing to spawn).
-  void launch(int i) {
-    _checkOpen();
-    final rc = _lib.badi_session_launch(_handle, i);
-    if (rc != 0) throw StateError('badi_session_launch failed ($rc)');
+    final term = _lib.badi_session_is_terminal(_handle, i);
+    if (term < 0) throw StateError('no launch target at index $i');
+    final argc = _lib.badi_session_arg_count(_handle, i);
+    final argv = <String>[];
+    for (var a = 0; a < argc; a++) {
+      final arg = _string(_lib.badi_session_arg(_handle, i, a));
+      if (arg == null) throw StateError('missing argv $a at index $i');
+      argv.add(arg);
+    }
+    return LaunchTarget(
+      argv: argv,
+      terminal: term > 0,
+      cwd: _string(_lib.badi_session_cwd(_handle, i)),
+    );
   }
 
   /// Selected line in lines mode: print it to stdout. Apps mode has no

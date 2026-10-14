@@ -1,6 +1,7 @@
-//! C ABI for the picker core: stateful sessions over scanned apps or piped
-//! input lines. Dart/Flutter renders rows and owns stdin/stdout; all
-//! filtering, selection, and launching lives here.
+//! C ABI for the picker core: filtered views over scanned apps or piped
+//! input lines. The frontend renders rows and owns stdin/stdout, the
+//! selection cursor, and spawning; scan results, filtering, and row data
+//! live here.
 //!
 //! `zig_lib.h` is the source of truth for ffigen; keep the signatures in sync.
 //!
@@ -68,8 +69,8 @@ export fn badi_session_lines(lines: ?[*]const [*:0]const u8, n: usize) callconv(
 }
 
 /// Re-filter on `query` (NULL/blank shows all, ASCII case-insensitive
-/// substring) and reset selection to the top. Returns 0, -1 on bad handle
-/// or OOM (previous view is kept on OOM).
+/// substring). Returns 0, -1 on bad handle or OOM (previous view is kept
+/// on OOM). The frontend owns the cursor and resets it after calling this.
 export fn badi_session_query(handle: ?*BadiSession, query: ?[*:0]const u8) callconv(.c) c_int {
     const s = sessionOf(handle) orelse return -1;
     const q: ?[]const u8 = if (query) |x| std.mem.span(x) else null;
@@ -105,32 +106,36 @@ export fn badi_session_icon(handle: ?*const BadiSession, index: usize) callconv(
     return dupe(v);
 }
 
-/// Move selection by `delta` rows, clamped. No-op on bad handle or empty
-/// view.
-export fn badi_session_move(handle: ?*BadiSession, delta: c_long) callconv(.c) void {
-    const s = sessionOf(handle) orelse return;
-    s.moveSelected(@intCast(delta));
+/// Launch argv length for shown row `index`. 0 when the handle/row is bad
+/// or the row is not launchable (lines mode).
+export fn badi_session_arg_count(handle: ?*const BadiSession, index: usize) callconv(.c) usize {
+    const t = targetOf(handle, index) orelse return 0;
+    return t.argv.len;
 }
 
-/// Selected shown-row index, or -1 when handle is bad or the view is empty.
-export fn badi_session_selected(handle: ?*const BadiSession) callconv(.c) c_long {
-    const s = sessionOfConst(handle) orelse return -1;
-    if (s.selectedEntry() == null) return -1;
-    return @intCast(s.selected);
+/// One launch argument as an owned copy. NULL when handle/row/arg is bad,
+/// when the row is not launchable (lines mode), or on OOM.
+export fn badi_session_arg(handle: ?*const BadiSession, index: usize, arg: usize) callconv(.c) ?[*:0]u8 {
+    const t = targetOf(handle, index) orelse return null;
+    if (arg >= t.argv.len) return null;
+    return dupe(t.argv[arg]);
 }
 
-/// Spawn shown row `index` and return immediately (no waiting). Terminal
-/// apps are wrapped in `$TERMINAL -e`. Returns 0 on spawn, -1 on bad
-/// handle/row or when the row is not launchable (lines mode), -2 when the
-/// spawn itself fails.
-export fn badi_session_launch(handle: ?*BadiSession, index: usize) callconv(.c) c_int {
-    const s = sessionOf(handle) orelse return -1;
-    const io = launchIo();
-    s.launch(io, index) catch |err| {
-        if (err == error.OutOfMemory) return -2;
-        return if (err == error.EmptyArgv) -1 else -2;
-    };
-    return 0;
+/// Whether shown row `index` wants a terminal wrapper. 1 when terminal,
+/// 0 when not, -1 when handle/row is bad or the row is not launchable
+/// (lines mode).
+export fn badi_session_is_terminal(handle: ?*const BadiSession, index: usize) callconv(.c) c_int {
+    const t = targetOf(handle, index) orelse return -1;
+    return if (t.terminal) 1 else 0;
+}
+
+/// Working directory to launch shown row `index` in, as an owned copy.
+/// NULL when unset, handle/row is bad, the row is not launchable (lines
+/// mode), or on OOM. NULL cwd means inherit.
+export fn badi_session_cwd(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
+    const t = targetOf(handle, index) orelse return null;
+    const p = t.path orelse return null;
+    return dupe(p);
 }
 
 /// Selected line in lines mode, as an owned copy. NULL in apps mode or
@@ -142,7 +147,8 @@ export fn badi_session_result(handle: ?*const BadiSession, index: usize) callcon
 }
 
 /// Append piped lines to a lines-mode session (copied). Newcomers matching
-/// the active query join the view in arrival order; selection is untouched.
+/// the active query join the view in arrival order; existing rows never
+/// move, so a frontend-owned cursor stays valid.
 /// Returns 0, -1 on bad handle, wrong mode (apps sessions), or OOM.
 /// Empty appends are a no-op.
 export fn badi_session_append(handle: ?*BadiSession, lines: ?[*]const [*:0]const u8, n: usize) callconv(.c) c_int {
@@ -168,20 +174,6 @@ export fn badi_session_destroy(handle: ?*BadiSession) callconv(.c) void {
 
 // ---------------------------------------------------------------- helpers
 
-/// Spawn-capable Io: `global_single_threaded` uses a failing allocator,
-/// which `process.spawn` needs. Initialized once, lives until process exit
-/// (sequential use only, like the rest of this API).
-var threaded_storage: std.Io.Threaded = undefined;
-var threaded_ready = false;
-
-fn launchIo() std.Io {
-    if (!threaded_ready) {
-        threaded_storage = .init(c_alloc, .{});
-        threaded_ready = true;
-    }
-    return threaded_storage.io();
-}
-
 fn sessionOf(handle: ?*BadiSession) ?*session.Session {
     const h = handle orelse return null;
     const box: *Box = @ptrCast(@alignCast(h));
@@ -198,6 +190,12 @@ fn rowOf(handle: ?*const BadiSession, index: usize) ?session.Entry {
     // Entry is a plain value of borrowed slices; copying it out is safe.
     const s = sessionOfConst(handle) orelse return null;
     return s.row(index);
+}
+
+fn targetOf(handle: ?*const BadiSession, index: usize) ?session.Session.App {
+    // App is arena-owned; the caller dupes what it keeps.
+    const s = sessionOfConst(handle) orelse return null;
+    return s.target(index);
 }
 
 fn dupe(s: []const u8) ?[*:0]u8 {
