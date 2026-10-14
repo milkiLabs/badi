@@ -70,6 +70,9 @@ package() {
   install -Dm644 "$root/packaging/icons/badi.svg" \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/badi.svg"
 
+  install -Dm644 "$root/packaging/badi.service" \
+    "$pkgdir/usr/lib/systemd/user/badi.service"
+
   install -d "$pkgdir/usr/bin"
   ln -s /usr/lib/badi/badi "$pkgdir/usr/bin/badi"
 }

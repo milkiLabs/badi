@@ -21,7 +21,7 @@ pub fn main(init: std.process.Init) !void {
     try s.setQuery("term");
     try out.print("search \"term\": {d} hits\n", .{s.count()});
     for (0..@min(s.count(), 3)) |i| {
-        try out.print("  {s}\n", .{s.row(i).?.title});
+        try out.print("  {s}\n", .{ s.row(i).?.title });
     }
 
     try out.flush();

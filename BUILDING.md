@@ -36,6 +36,45 @@ The Badi native library must exist **before** `flutter build linux`:
 
 So: build the native library first, always.
 
+## Shell mode (bar + on-demand launcher)
+
+One binary, three roles:
+
+```sh
+badi --shell   # autostart: top bar always visible, launcher hidden, serves IPC
+badi           # keybinding: opens the launcher via the running daemon
+find / | badi  # dmenu style: lines stream to the daemon, the pick is printed
+```
+
+Bare `badi` with no daemon listening falls back to a one-shot window with
+the old exit semantics, so piping keeps working without the shell running.
+`Esc` closes the launcher; there is no toggle command by design.
+
+Protocol: newline-delimited JSON over `$XDG_RUNTIME_DIR/badi.sock`
+(`lib/platform/ipc.dart`). The client stays pure `dart:io` — no Flutter
+init — so keypresses answer fast. A lines-mode client blocks until the
+pick (stdout, exit 0) or abort (exit 1, rofi-style); an apps-mode client
+exits on `ack` and the daemon owns spawning. A second open while the
+launcher is visible gets an `error` reply (exit 1); close with `Esc` first.
+
+Startup — either the user unit or a compositor `exec-once`:
+
+```sh
+systemctl --user enable --now badi   # badi --shell under graphical-session.target
+```
+
+```ini
+# Hyprland
+exec-once = badi --shell
+bind = SUPER, SPACE, exec, badi
+# Sway / Niri equivalents: exec … / spawn-at-startup …
+```
+
+State lives in `lib/shell/shell_controller.dart` (open/close/mode, no
+sockets, unit-tested); completion in `lib/shell/shell_actions.dart`
+(spawn-and-hide, answer-the-client). The Zig core is untouched: filtering
+and row data stay UI-agnostic behind `Session`.
+
 ## Daily builds
 
 Debug:
@@ -48,16 +87,13 @@ flutter run
 Release bundle, no packaging:
 
 ```sh
-cd badi_lib && zig build -Doptimize=ReleaseFast && cd ..
+cd badi_lib && zig build -Doptimize=fast && cd ..
 flutter build linux --release
 ```
 
 Output lands in `build/linux/x64/release/bundle/`.
 
 > `tool/build_zig.sh` does **not** forward `-Doptimize`; it hardcodes a plain
-> `zig build`. For a release build call `zig build -Doptimize=ReleaseFast`
-> directly, or you will ship a Debug library. Debug is ~14 MB, ReleaseFast
-> ~4.2 MB.
 
 Run the result with `./build/linux/x64/release/bundle/badi` from that
 directory — the executable resolves its libraries relative to its own path.
