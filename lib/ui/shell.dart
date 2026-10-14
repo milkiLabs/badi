@@ -1,14 +1,16 @@
 // Shell surfaces for the long-lived daemon (`badi --shell`) and the
 // one-shot fallback (bare `badi` with no daemon listening).
 //
-// The daemon drives two layer-shell surfaces in one process via
-// [ViewCollection]: an always-on top bar (exclusive zone, no keyboard)
-// and an on-demand centered launcher (overlay, exclusive keyboard) that
-// exists only while [ShellController.launcherOpen]. Controllers are created
-// inside the widget tree (State.initState / listeners), never in main(),
-// so GTK windowing is fully up before the first surface is created.
+// The daemon drives layer-shell surfaces via [ViewCollection]: an always-on
+// top bar (exclusive zone, no keyboard), an on-demand centered launcher
+// (overlay, exclusive keyboard), and an on-demand wifi popup (overlay, no
+// keyboard) anchored under the wifi icon. Controllers are created inside
+// the widget tree (State.initState / listeners), never in main(), so GTK
+// windowing is fully up before the first surface is created.
 // See https://github.com/mattkae/layer_shell.dart
 // ignore_for_file: invalid_use_of_internal_member
+
+import 'dart:async';
 
 import 'package:layer_shell/layer_shell.dart';
 import 'package:material_ui/material_ui.dart';
@@ -18,6 +20,7 @@ import '../shell/shell_controller.dart';
 import 'app_theme.dart';
 import 'bar_page.dart';
 import 'launcher_page.dart';
+import 'wifi_popup.dart';
 
 /// Shared dark theme for every shell surface. Each [LayerShellWindow] needs
 /// its own [MaterialApp] (localizations, directionality, overlay per view).
@@ -44,6 +47,10 @@ class BadiShell extends StatefulWidget {
 class _BadiShellState extends State<BadiShell> {
   late final LayershellWindowController _bar;
   LayershellWindowController? _launcher;
+  LayershellWindowController? _wifiPopup;
+  Timer? _wifiHideTimer;
+  bool _wifiHoveringIcon = false;
+  bool _wifiHoveringPopup = false;
 
   @override
   void initState() {
@@ -99,11 +106,71 @@ class _BadiShellState extends State<BadiShell> {
     );
   }
 
+  void _setWifiIconHover(bool hovering) {
+    _wifiHoveringIcon = hovering;
+    if (hovering) {
+      _wifiHideTimer?.cancel();
+      _wifiHideTimer = null;
+      _showWifiPopup();
+    } else {
+      _scheduleHideWifiPopup();
+    }
+  }
+
+  void _setWifiPopupHover(bool hovering) {
+    _wifiHoveringPopup = hovering;
+    if (hovering) {
+      _wifiHideTimer?.cancel();
+      _wifiHideTimer = null;
+    } else {
+      _scheduleHideWifiPopup();
+    }
+  }
+
+  void _scheduleHideWifiPopup() {
+    _wifiHideTimer?.cancel();
+    _wifiHideTimer = Timer(const Duration(milliseconds: 200), () {
+      if (!_wifiHoveringIcon && !_wifiHoveringPopup) {
+        _hideWifiPopup();
+      }
+      _wifiHideTimer = null;
+    });
+  }
+
+  void _showWifiPopup() {
+    if (_wifiPopup != null) return;
+    final monitor = listMonitors().firstOrNull;
+    _wifiPopup = LayershellWindowController(
+      layer: LayerShellLayer.overlay,
+      anchorEdges: const [
+        LayerShellEdge.top,
+        LayerShellEdge.right,
+      ],
+      keyboardMode: LayerShellKeyboardMode.none,
+      width: 220,
+      height: 140,
+      exclusiveZone: 0,
+      monitor: monitor?.gdkMonitor,
+      namespace: 'badi-wifi-popup',
+    );
+    setState(() {});
+  }
+
+  void _hideWifiPopup() {
+    if (_wifiPopup == null) return;
+    _wifiPopup!.destroy();
+    _wifiPopup = null;
+    _wifiHoveringIcon = false;
+    _wifiHoveringPopup = false;
+    setState(() {});
+  }
 
   @override
   void dispose() {
     widget.shell.removeListener(_syncLauncher);
     _launcher?.destroy();
+    _wifiPopup?.destroy();
+    _wifiHideTimer?.cancel();
     _bar.destroy();
     super.dispose();
   }
@@ -116,10 +183,14 @@ class _BadiShellState extends State<BadiShell> {
       views: [
         LayerShellWindow(
           controller: _bar,
-          child: _surface(home: BarBody(onOpenLauncher: _openFromBar)),
+          child: _surface(
+            home: BarBody(
+              onOpenLauncher: _openFromBar,
+              onWifiHover: () => _setWifiIconHover(true),
+              onWifiExit: () => _setWifiIconHover(false),
+            ),
+          ),
         ),
-        // The window existing implies a request is open (same flag drives
-        // both), so actions is non-null here.
         if (launcher != null && actions != null)
           LayerShellWindow(
             controller: launcher,
@@ -129,6 +200,13 @@ class _BadiShellState extends State<BadiShell> {
                 piped: widget.shell.piped,
                 actions: actions,
               ),
+            ),
+          ),
+        if (_wifiPopup != null)
+          LayerShellWindow(
+            controller: _wifiPopup!,
+            child: _surface(
+              home: WifiPopup(onHoverChanged: _setWifiPopupHover),
             ),
           ),
       ],

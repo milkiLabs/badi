@@ -3,9 +3,16 @@ import 'package:material_ui/material_ui.dart';
 import 'app_theme.dart';
 
 class BarBody extends StatelessWidget {
-  const BarBody({super.key, required this.onOpenLauncher});
+  const BarBody({
+    super.key,
+    required this.onOpenLauncher,
+    required this.onWifiHover,
+    required this.onWifiExit,
+  });
 
   final VoidCallback onOpenLauncher;
+  final VoidCallback onWifiHover;
+  final VoidCallback onWifiExit;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +30,12 @@ class BarBody extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            const Icon(Icons.wifi, color: AppColors.body, size: 18),
+            MouseRegion(
+              onEnter: (_) => onWifiHover(),
+              onExit: (_) => onWifiExit(),
+              cursor: SystemMouseCursors.basic,
+              child: const Icon(Icons.wifi, color: AppColors.body, size: 18),
+            ),
           ],
         ),
       ),
