@@ -45,7 +45,7 @@ class LaunchTarget {
 /// the selection cursor and spawning live here, in the frontend. Pipe mode
 /// and app mode share this one type:
 ///
-/// The [ZigLib] bindings are required explicitly so this layer never
+/// The [BadiLib] bindings are required explicitly so this layer never
 /// locates the dynamic library itself (loading is platform wiring, see
 /// `platform/zig.dart`).
 /// ```dart
@@ -62,7 +62,7 @@ class Session implements Finalizable {
     _finalizer.attach(this, _handle, detach: this);
   }
 
-  final ZigLib _lib;
+  final BadiLib _lib;
   final Pointer<BadiSession> _handle;
   bool _closed = false;
   late final Finalizer<Pointer<BadiSession>> _finalizer =
@@ -71,7 +71,7 @@ class Session implements Finalizable {
   /// Scan system + user applications dirs, sorted by name.
   /// `locale` (defaults to the system locale) picks localized names.
   /// Throws [StateError] on OOM (NULL handle).
-  factory Session.apps({String? locale, required ZigLib lib}) {
+  factory Session.apps({String? locale, required BadiLib lib}) {
     final lang = locale ?? Platform.localeName;
     return using((arena) {
       final loc = lang.toNativeUtf8(allocator: arena);
@@ -85,7 +85,7 @@ class Session implements Finalizable {
 
   /// Wrap piped input lines (copied; caller keeps ownership).
   /// Throws [StateError] on OOM (NULL handle).
-  factory Session.lines(List<String> lines, {required ZigLib lib}) {
+  factory Session.lines(List<String> lines, {required BadiLib lib}) {
     return using((arena) {
       final handle = lines.isEmpty
           ? lib.badi_session_lines(

@@ -3,7 +3,7 @@
 //! selection cursor, and spawning; scan results, filtering, and row data
 //! live here.
 //!
-//! `zig_lib.h` is the source of truth for ffigen; keep the signatures in sync.
+//! `badi.h` is the source of truth for ffigen; keep the signatures in sync.
 //!
 //! Ownership:
 //! - `badi_session_apps`/`badi_session_lines` return a heap-owned handle,
@@ -18,7 +18,7 @@ const session = @import("session.zig");
 const c_alloc = std.heap.c_allocator;
 
 /// Opaque handle owning a picker session. ABI-identical to
-/// `struct BadiSession` in `zig_lib.h`.
+/// `struct BadiSession` in `badi.h`.
 pub const BadiSession = opaque {};
 
 const Box = struct {

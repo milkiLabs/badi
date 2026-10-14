@@ -9,14 +9,14 @@ Future<void> main() async {
       dart: DartOutput(
         path: packageRoot.resolve('lib/core/zig.g.dart'),
       ),
-      style: const DynamicLibraryBindings(wrapperName: 'ZigLib'),
+      style: const DynamicLibraryBindings(wrapperName: 'BadiLib'),
     ),
     input: Input(
       entryPoints: [
-        packageRoot.resolve("zig_lib/src/zig_lib.h"),
+        packageRoot.resolve("badi_lib/src/badi.h"),
       ],
     ),
-    // This includes everything from zig_lib.h.
+    // This includes everything from badi.h.
     visitors: [
       Visitor(
         func: (node) => node.isIncluded = true,

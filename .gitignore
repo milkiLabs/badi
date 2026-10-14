@@ -1,6 +1,5 @@
-zig_lib/.zig-cache/
-zig_lib/zig-out/
-zig_lib/zig-out-android/
+badi_lib/.zig-cache/
+badi_lib/zig-out/
 .dart_tool/
 build/
 notes/

@@ -1,5 +1,5 @@
 # Maintainer: MuhammadSwa <muhammadatefsw@protonmail.com>
-pkgname=comp
+pkgname=badi
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="Launcher for Linux applications"
@@ -33,7 +33,7 @@ build() {
   #    up from zig-out/lib/ at *install* time and only warns if it is missing,
   #    so a stale Debug .so silently ships if we skip this.
   #    build_zig.sh does not forward -Doptimize, so call zig directly.
-  pushd zig_lib >/dev/null
+  pushd badi_lib >/dev/null
   zig build -Doptimize=ReleaseFast
   popd >/dev/null
 
@@ -42,8 +42,8 @@ build() {
   flutter build linux --release
 
   # 3. Fail loudly rather than packaging a bundle with a missing FFI library.
-  test -f "$_flutter_bundle/lib/libzig_lib.so" \
-    || { echo "ERROR: libzig_lib.so missing from bundle" >&2; exit 1; }
+  test -f "$_flutter_bundle/lib/libbadi.so" \
+    || { echo "ERROR: libbadi.so missing from bundle" >&2; exit 1; }
   test -f "$_flutter_bundle/lib/libapp.so" \
     || { echo "ERROR: libapp.so missing from bundle (not an AOT build?)" >&2; exit 1; }
 }
@@ -53,10 +53,10 @@ package() {
   root="$(_project_root)"
 
   # The bundle layout is load-bearing: the executable uses RUNPATH=$ORIGIN/lib
-  # and lib/platform/zig.dart resolves libzig_lib.so relative to Platform.resolvedExecutable
+  # and lib/platform/zig.dart resolves libbadi.so relative to Platform.resolvedExecutable
   # (which resolves symlinks). So the whole bundle has to stay together under
-  # /usr/lib/comp, with /usr/bin/comp as a symlink into it.
-  destdir="$pkgdir/usr/lib/comp"
+  # /usr/lib/badi, with /usr/bin/badi as a symlink into it.
+  destdir="$pkgdir/usr/lib/badi"
 
   install -d "$destdir"
   cp -r "$root/build/linux/x64/release/bundle/." "$destdir/"
@@ -65,11 +65,11 @@ package() {
   # debuggers, some loaders). Flutter's CMake install leaves them 0644.
   chmod 755 "$destdir/lib/"*.so
 
-  install -Dm644 "$root/packaging/comp.desktop" \
-    "$pkgdir/usr/share/applications/comp.desktop"
-  install -Dm644 "$root/packaging/icons/comp.svg" \
-    "$pkgdir/usr/share/icons/hicolor/scalable/apps/comp.svg"
+  install -Dm644 "$root/packaging/badi.desktop" \
+    "$pkgdir/usr/share/applications/badi.desktop"
+  install -Dm644 "$root/packaging/icons/badi.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/badi.svg"
 
   install -d "$pkgdir/usr/bin"
-  ln -s /usr/lib/comp/comp "$pkgdir/usr/bin/comp"
+  ln -s /usr/lib/badi/badi "$pkgdir/usr/bin/badi"
 }

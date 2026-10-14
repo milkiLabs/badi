@@ -56,8 +56,8 @@ class _LauncherBodyState extends State<LauncherBody> {
       _controller = LauncherController(
         actions: widget.actions,
         piped: widget.piped,
-        openApps: () => Session.apps(lib: zigLib),
-        openLines: (first) => Session.lines([first], lib: zigLib),
+        openApps: () => Session.apps(lib: badiLib),
+        openLines: (first) => Session.lines([first], lib: badiLib),
       );
       _ownsController = true;
     }

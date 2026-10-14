@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zig_fii/core/actions.dart';
-import 'package:zig_fii/core/launcher_controller.dart';
-import 'package:zig_fii/core/session.dart';
-import 'package:zig_fii/platform/zig.dart';
+import 'package:badi/core/actions.dart';
+import 'package:badi/core/launcher_controller.dart';
+import 'package:badi/core/session.dart';
+import 'package:badi/platform/zig.dart';
 
 class FakeActions implements LauncherActions {
   final pickedLines = <String>[];
@@ -37,8 +37,8 @@ LauncherController controller({
   final c = LauncherController(
     actions: actions,
     piped: piped,
-    openApps: () => Session.lines(apps, lib: zigLib),
-    openLines: (first) => Session.lines([first], lib: zigLib),
+    openApps: () => Session.lines(apps, lib: badiLib),
+    openLines: (first) => Session.lines([first], lib: badiLib),
   );
   addTearDown(c.dispose);
   return c;

@@ -26,15 +26,15 @@ Verified against Flutter 3.49.0-0.2.pre and Zig 0.17.0.
 
 ## Build order
 
-The Zig library must exist **before** `flutter build linux`:
+The Badi native library must exist **before** `flutter build linux`:
 
-1. `linux/CMakeLists.txt` copies `zig_lib/zig-out/lib/libzig_lib.so` into the
+1. `linux/CMakeLists.txt` copies `badi_lib/zig-out/lib/libbadi.so` into the
    bundle's `lib/` at _install_ time — that is, while `flutter build` is running.
 2. When the file is absent, that copy degrades to a `message(WARNING)`. The
    build still reports success, and you get a package with no FFI library that
    fails at runtime.
 
-So: build Zig first, always.
+So: build the native library first, always.
 
 ## Daily builds
 
@@ -48,7 +48,7 @@ flutter run
 Release bundle, no packaging:
 
 ```sh
-cd zig_lib && zig build -Doptimize=ReleaseFast && cd ..
+cd badi_lib && zig build -Doptimize=ReleaseFast && cd ..
 flutter build linux --release
 ```
 
@@ -59,12 +59,12 @@ Output lands in `build/linux/x64/release/bundle/`.
 > directly, or you will ship a Debug library. Debug is ~14 MB, ReleaseFast
 > ~4.2 MB.
 
-Run the result with `./build/linux/x64/release/bundle/comp` from that
+Run the result with `./build/linux/x64/release/bundle/badi` from that
 directory — the executable resolves its libraries relative to its own path.
 
 ## Regenerating bindings
 
-`lib/zig.g.dart` is generated from `zig_lib/src/zig_lib.h`, which is the source
+`lib/core/zig.g.dart` is generated from `badi_lib/src/badi.h`, which is the source
 of truth for the ABI. After changing an exported function:
 
 ```sh
@@ -80,8 +80,8 @@ Dart resolves symbols lazily at call time, so a stale binding fails at runtime,
 not at build time. Check the contract explicitly after any FFI change:
 
 ```sh
-nm -D --defined-only zig_lib/zig-out/lib/libzig_lib.so | grep ' T ' | awk '{print $3}' | grep '^badi_' | sort > /tmp/so.txt
-grep -oE "'(badi_[a-z_]+)'" lib/zig.g.dart | tr -d "'" | sort -u > /tmp/dart.txt
+nm -D --defined-only badi_lib/zig-out/lib/libbadi.so | grep ' T ' | awk '{print $3}' | grep '^badi_' | sort > /tmp/so.txt
+grep -oE "'(badi_[a-z_]+)'" lib/core/zig.g.dart | tr -d "'" | sort -u > /tmp/dart.txt
 diff /tmp/so.txt /tmp/dart.txt && echo "ABI OK"
 ```
 
@@ -90,24 +90,27 @@ symbol present in `/tmp/dart.txt` but missing from the `.so` is a hard error.
 
 ## Tests
 
-Zig core:
+Native core:
 
 ```sh
-cd zig_lib && zig build test
+cd badi_lib && zig build test
 ```
 
 Covers `apps.zig`, `icons.zig`, `parse.zig`, `exec.zig`, `session.zig`, and
-`ffi.zig`. There is no Dart test suite yet (`flutter test` has no `test/`
-directory).
+`ffi.zig`. Dart widget/unit tests live in `test/`:
+
+```sh
+flutter test
+```
 
 ## Packaging for Arch
 
 ```sh
 cd packaging
-makepkg -sfc          # build -> comp-<ver>-<rel>-x86_64.pkg.tar.zst
+makepkg -sfc          # build -> badi-<ver>-<rel>-x86_64.pkg.tar.zst
 makepkg -si      # build, then install
 # or, for an already-built package:
-sudo pacman -U comp-0.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U badi-0.1.0-1-x86_64.pkg.tar.zst
 ```
 
 `-s` is `--syncdeps` (installs missing dependencies with `pacman`); it has
@@ -119,24 +122,24 @@ you want after changing native code. The build performs a full
 ### Installed layout
 
 ```
-/usr/bin/comp              -> symlink to /usr/lib/comp/comp
-/usr/lib/comp/comp
-/usr/lib/comp/lib/         libapp.so, libflutter_linux_gtk.so, libzig_lib.so
-/usr/lib/comp/data/        icudtl.dat, flutter_assets/
-/usr/share/applications/comp.desktop
-/usr/share/icons/hicolor/scalable/apps/comp.svg
+/usr/bin/badi              -> symlink to /usr/lib/badi/badi
+/usr/lib/badi/badi
+/usr/lib/badi/lib/         libapp.so, libflutter_linux_gtk.so, libbadi.so
+/usr/lib/badi/data/        icudtl.dat, flutter_assets/
+/usr/share/applications/badi.desktop
+/usr/share/icons/hicolor/scalable/apps/badi.svg
 ```
 
 **The bundle layout is load-bearing — do not flatten it.** Two independent
 mechanisms depend on it:
 
 - the executable is linked with `RUNPATH=$ORIGIN/lib`, and
-- `lib/zig.dart` locates `libzig_lib.so` relative to
+- `lib/platform/zig.dart` locates `libbadi.so` relative to
   `Platform.resolvedExecutable`, which **resolves symlinks**.
 
 Copying just the binary to `/usr/bin` leaves both pointing at directories that
 do not exist, and the app fails to start. The whole bundle has to stay together
-under `/usr/lib/comp` with `/usr/bin/comp` as a symlink into it.
+under `/usr/lib/badi` with `/usr/bin/badi` as a symlink into it.
 
 The package also `chmod 755`s the `.so` files, which Flutter's CMake install
 leaves at `0644`.
@@ -160,12 +163,12 @@ Two things in `packaging/PKGBUILD` look odd but are deliberate:
   a PKGBUILD is sourced at its top level, and makepkg sets it to
   `packaging/src`, so the project root is two levels up. Computing it in a
   function body is the only point where both facts hold.
-- **`options=('!strip')`.** The bundle ships prebuilt engine and Zig shared
+- **`options=('!strip')`.** The bundle ships prebuilt engine and native shared
   objects; stripping them buys little and is a common source of breakage.
 
 ### Before publishing to the AUR
 
-- Replace the placeholder artwork in `packaging/icons/comp.svg`.
+- Replace the placeholder artwork in `packaging/icons/badi.svg`.
 - Confirm `license=('MIT')` and `pkgdesc` in `packaging/PKGBUILD`. Both were
   inferred, not verified.
 - Commit the working tree first. The AUR builds from a clean checkout, so any
@@ -191,10 +194,10 @@ now guards that install with an `EXISTS` check. If you reintroduce an
 unconditional `install(DIRECTORY ...)` there, builds become intermittently
 fatal.
 
-### `libzig_lib.so` missing at runtime
+### `libbadi.so` missing at runtime
 
-Either the Zig library was never built, or it was built after `flutter build`.
-Rebuild Zig first, then rebuild the bundle. See [Build order](#build-order).
+Either the native library was never built, or it was built after `flutter build`.
+Rebuild the native library first, then rebuild the bundle. See [Build order](#build-order).
 
 ### `gtk_wayland_init_if_needed: assertion 'GDK_IS_WAYLAND_DISPLAY' failed`
 

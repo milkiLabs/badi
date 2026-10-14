@@ -1,5 +1,5 @@
-#ifndef ZIG_LIB_H
-#define ZIG_LIB_H
+#ifndef BADI_H
+#define BADI_H
 
 /* size_t without pulling in system headers (keeps ffigen/libclang happy). */
 typedef __SIZE_TYPE__ size_t;

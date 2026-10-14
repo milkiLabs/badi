@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=Comp
+Name=Badi
 GenericName=Application Launcher
 Comment=Launcher for Linux applications
-Exec=comp
-Icon=comp
+Exec=badi
+Icon=badi
 Terminal=false
 Categories=Utility;
 Keywords=launcher;apps;applications;menu;

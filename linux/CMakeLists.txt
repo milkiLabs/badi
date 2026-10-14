@@ -4,10 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "comp")
+set(BINARY_NAME "badi")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.example.comp")
+set(APPLICATION_ID "com.example.badi")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -107,16 +107,16 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     COMPONENT Runtime)
 endforeach(bundled_library)
 
-# === Zig native library (built via ./tool/build_zig.sh) ===
-# Expected at zig_lib/zig-out/lib/libzig_lib.so. Guarded with EXISTS so the
+# === Badi native library (built via ./tool/build_zig.sh) ===
+# Expected at badi_lib/zig-out/lib/libbadi.so. Guarded with EXISTS so the
 # Flutter build doesn't break before the first `zig build`.
-set(ZIG_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../zig_lib/zig-out/lib/libzig_lib.so")
+set(ZIG_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../badi_lib/zig-out/lib/libbadi.so")
 if(EXISTS "${ZIG_LIB}")
   install(FILES "${ZIG_LIB}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 else()
-  message(WARNING "Zig lib not found at ${ZIG_LIB}; run ./tool/build_zig.sh --host first")
+  message(WARNING "Badi lib not found at ${ZIG_LIB}; run ./tool/build_zig.sh --host first")
 endif()
 
 # Copy the native assets provided by the build.dart from all packages.

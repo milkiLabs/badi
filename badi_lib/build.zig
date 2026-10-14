@@ -3,7 +3,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const lib = b.addLibrary(.{
-        .name = "zig_lib",
+        .name = "badi",
         .linkage = .dynamic,
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/ffi.zig"),
@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
-        .name = "zig",
+        .name = "cli",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
