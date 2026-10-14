@@ -141,17 +141,30 @@ class _LauncherBodyState extends State<LauncherBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: _query,
-                  focusNode: _searchFocus,
-                  autofocus: true,
-                  onChanged: _onQuery,
-                  cursorColor: AppColors.title,
-                  style: AppTextStyles.input,
-                  decoration: InputDecoration(
-                    hintText: pipeMode ? 'Filter…' : 'Search applications…',
-                    hintStyle: AppTextStyles.hint,
-                    border: InputBorder.none,
+                Shortcuts(
+                  // Ctrl+W deletes a word, exactly like Ctrl+Backspace:
+                  // same intent, same word-boundary logic, shift-insensitive
+                  // like the framework binding.
+                  shortcuts: <ShortcutActivator, Intent>{
+                    for (final shift in <bool>[false, true])
+                      SingleActivator(
+                        LogicalKeyboardKey.keyW,
+                        control: true,
+                        shift: shift,
+                      ): const DeleteToNextWordBoundaryIntent(forward: false),
+                  },
+                  child: TextField(
+                    controller: _query,
+                    focusNode: _searchFocus,
+                    autofocus: true,
+                    onChanged: _onQuery,
+                    cursorColor: AppColors.title,
+                    style: AppTextStyles.input,
+                    decoration: InputDecoration(
+                      hintText: pipeMode ? 'Filter…' : 'Search applications…',
+                      hintStyle: AppTextStyles.hint,
+                      border: InputBorder.none,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
