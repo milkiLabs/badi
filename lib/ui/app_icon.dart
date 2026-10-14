@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'app_theme.dart';
+
 /// 36px app picture: the resolved icon file, or the app's initial letter.
 class AppIcon extends StatelessWidget {
   const AppIcon({super.key, required this.iconPath, required this.fallback});
@@ -35,15 +37,11 @@ class AppIcon extends StatelessWidget {
   Widget _placeholder() {
     final letter = fallback.trim().isEmpty ? '?' : fallback.trim()[0];
     return ColoredBox(
-      color: const Color(0xFF45475A),
+      color: AppColors.selectedRow,
       child: Center(
         child: Text(
           letter.toUpperCase(),
-          style: const TextStyle(
-            color: Color(0xFFCDD6F4),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTextStyles.placeholderLetter,
         ),
       ),
     );

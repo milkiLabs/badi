@@ -7,7 +7,7 @@ Future<void> main() async {
   final generator = FfiGenerator(
     output: Output(
       dart: DartOutput(
-        path: packageRoot.resolve('lib/zig.g.dart'),
+        path: packageRoot.resolve('lib/core/zig.g.dart'),
       ),
       style: const DynamicLibraryBindings(wrapperName: 'ZigLib'),
     ),

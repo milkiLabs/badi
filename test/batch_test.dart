@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zig_fii/batch.dart';
+import 'package:zig_fii/core/batch.dart';
 
 void main() {
   test('flushes every size items', () {

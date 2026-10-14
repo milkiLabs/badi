@@ -1,14 +1,17 @@
-// Layer-shell surface for the launcher. Owns the window controller
-// the picker UI itself lives in [LauncherBody].
+// Layer-shell surface for the launcher. Owns the window controller and
+// provides the per-view [MaterialApp] (localizations, directionality,
+// overlay, text shortcuts); the picker UI itself lives in [LauncherBody].
 //
 // Controllers must be created inside the widget tree (State.initState),
 // not in main(), so GTK windowing is fully up before the first surface
 // is created. See https://github.com/mattkae/layer_shell.dart
+// ignore_for_file: invalid_use_of_internal_member
 
 import 'package:layer_shell/layer_shell.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'launcher_body.dart';
+import 'app_theme.dart';
+import 'launcher_page.dart';
 
 /// Root widget driving one centered layer-shell surface.
 class BadiShell extends StatefulWidget {
@@ -57,7 +60,7 @@ class _BadiShellState extends State<BadiShell> {
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: ThemeData.dark().copyWith(
-              scaffoldBackgroundColor: const Color(0xFF1E1E2E),
+              scaffoldBackgroundColor: AppColors.background,
             ),
             home: LauncherBody(piped: widget.piped),
           ),

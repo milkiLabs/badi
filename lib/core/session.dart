@@ -4,11 +4,10 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
-import 'zig.dart';
 import 'zig.g.dart';
 
 /// One shown row: an app or one piped line. [id] is the session-local row
-/// to pass back to [Session.launch]/[Session.result].
+/// to pass back to [Session.target]/[Session.result].
 class SessionRow {
   const SessionRow({
     required this.id,
@@ -45,8 +44,12 @@ class LaunchTarget {
 /// Owning handle for a picker session. Filtering lives in the Zig backend;
 /// the selection cursor and spawning live here, in the frontend. Pipe mode
 /// and app mode share this one type:
+///
+/// The [ZigLib] bindings are required explicitly so this layer never
+/// locates the dynamic library itself (loading is platform wiring, see
+/// `platform/zig.dart`).
 /// ```dart
-/// final s = Session.lines(['foo', 'bar']);
+/// final s = Session.lines(['foo', 'bar'], lib: myLib);
 /// try {
 ///   s.setQuery('ba');
 ///   print(s.rowAt(0).title); // bar
@@ -68,32 +71,30 @@ class Session implements Finalizable {
   /// Scan system + user applications dirs, sorted by name.
   /// `locale` (defaults to the system locale) picks localized names.
   /// Throws [StateError] on OOM (NULL handle).
-  factory Session.apps({String? locale, ZigLib? lib}) {
-    final l = lib ?? zigLib;
+  factory Session.apps({String? locale, required ZigLib lib}) {
     final lang = locale ?? Platform.localeName;
     return using((arena) {
       final loc = lang.toNativeUtf8(allocator: arena);
-      final handle = l.badi_session_apps(loc.cast());
+      final handle = lib.badi_session_apps(loc.cast());
       if (handle == nullptr) {
         throw StateError('badi_session_apps returned NULL (OOM)');
       }
-      return Session._(l, handle);
+      return Session._(lib, handle);
     });
   }
 
   /// Wrap piped input lines (copied; caller keeps ownership).
   /// Throws [StateError] on OOM (NULL handle).
-  factory Session.lines(List<String> lines, {ZigLib? lib}) {
-    final l = lib ?? zigLib;
+  factory Session.lines(List<String> lines, {required ZigLib lib}) {
     return using((arena) {
       final handle = lines.isEmpty
-          ? l.badi_session_lines(
+          ? lib.badi_session_lines(
               nullptr.cast(), 0)
-          : l.badi_session_lines(_toNativeLines(lines, arena), lines.length);
+          : lib.badi_session_lines(_toNativeLines(lines, arena), lines.length);
       if (handle == nullptr) {
         throw StateError('badi_session_lines returned NULL (OOM)');
       }
-      return Session._(l, handle);
+      return Session._(lib, handle);
     });
   }
 

@@ -53,7 +53,7 @@ package() {
   root="$(_project_root)"
 
   # The bundle layout is load-bearing: the executable uses RUNPATH=$ORIGIN/lib
-  # and lib/zig.dart resolves libzig_lib.so relative to Platform.resolvedExecutable
+  # and lib/platform/zig.dart resolves libzig_lib.so relative to Platform.resolvedExecutable
   # (which resolves symlinks). So the whole bundle has to stay together under
   # /usr/lib/comp, with /usr/bin/comp as a symlink into it.
   destdir="$pkgdir/usr/lib/comp"

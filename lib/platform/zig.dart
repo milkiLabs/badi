@@ -1,7 +1,7 @@
 import 'dart:ffi';
 import 'dart:io';
 
-import 'zig.g.dart';
+import '../core/zig.g.dart';
 
 /// Loads the Zig dynamic library and returns generated [ZigLib] bindings.
 ///
