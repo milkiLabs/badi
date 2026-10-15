@@ -14,6 +14,7 @@
 
 const std = @import("std");
 const session = @import("session.zig");
+const sysmon = @import("sysmon.zig");
 
 const c_alloc = std.heap.c_allocator;
 
@@ -170,6 +171,35 @@ export fn badi_session_destroy(handle: ?*BadiSession) callconv(.c) void {
     const box: *Box = @ptrCast(@alignCast(h));
     box.s.deinit();
     c_alloc.destroy(box);
+}
+
+/// ABI mirrors `BadiCpuSnapshot` in `badi.h`.
+pub const BadiCpuSnapshot = sysmon.CpuSnapshot;
+/// ABI mirrors `BadiMemInfo` in `badi.h`.
+pub const BadiMemInfo = sysmon.MemInfo;
+
+/// Fill `out` with current CPU counters. 0 on success, -1 on NULL out
+/// or read/parse failure. Pair two snapshots with
+/// `badi_cpu_usage_between` to get utilization.
+export fn badi_cpu_snapshot(out: ?*BadiCpuSnapshot) callconv(.c) c_int {
+    const dst = out orelse return -1;
+    return if (sysmon.snapshotCpu(dst)) 0 else -1;
+}
+
+/// Utilization fraction 0..1 between two snapshots, or -1 when the pair
+/// is invalid (NULL pointers, zero delta, counters backwards). The first
+/// sample of a session has no previous sample: expect -1 once.
+export fn badi_cpu_usage_between(prev: ?*const BadiCpuSnapshot, cur: ?*const BadiCpuSnapshot) callconv(.c) f64 {
+    const p = prev orelse return -1;
+    const c = cur orelse return -1;
+    return sysmon.cpuUsageBetween(p.*, c.*);
+}
+
+/// Fill `out` with current memory totals. 0 on success, -1 on NULL out
+/// or read/parse failure.
+export fn badi_mem_snapshot(out: ?*BadiMemInfo) callconv(.c) c_int {
+    const dst = out orelse return -1;
+    return if (sysmon.snapshotMem(dst)) 0 else -1;
 }
 
 // ---------------------------------------------------------------- helpers

@@ -23,6 +23,7 @@ import 'bar_page.dart';
 import 'launcher_page.dart';
 import 'popup_window.dart';
 import 'bluetooth_popup.dart';
+import 'sysmon_popup.dart';
 import 'wifi_popup.dart';
 
 /// Shared dark theme for every shell surface. Each [LayerShellWindow] needs
@@ -133,6 +134,17 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
           monitor: monitor,
           namespace: bluetoothPopupConfig.namespace,
         );
+      case 'sysmon':
+        return LayershellWindowController(
+          layer: LayerShellLayer.overlay,
+          anchorEdges: const [LayerShellEdge.top, LayerShellEdge.right],
+          keyboardMode: LayerShellKeyboardMode.none,
+          width: sysmonPopupConfig.width,
+          height: sysmonPopupConfig.height,
+          exclusiveZone: sysmonPopupConfig.exclusiveZone,
+          monitor: monitor,
+          namespace: sysmonPopupConfig.namespace,
+        );
       default:
         throw ArgumentError('Unknown popup key: $key');
     }
@@ -158,6 +170,11 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
       bluetoothPopupConfig,
       const BluetoothPopupContent(),
     );
+    final sysmonPopup = buildPopupView(
+      'sysmon',
+      sysmonPopupConfig,
+      const SysmonPopupContent(),
+    );
     return ViewCollection(
       views: [
         LayerShellWindow(
@@ -168,6 +185,8 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
               onWifiHover: (hovering) => onTriggerHover('wifi', hovering),
               onBluetoothHover: (hovering) =>
                   onTriggerHover('bluetooth', hovering),
+              onSysmonHover: (hovering) =>
+                  onTriggerHover('sysmon', hovering),
             ),
           ),
         ),
@@ -184,6 +203,7 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
           ),
         if (wifiPopup != null) wifiPopup,
         if (bluetoothPopup != null) bluetoothPopup,
+        if (sysmonPopup != null) sysmonPopup,
       ],
     );
   }

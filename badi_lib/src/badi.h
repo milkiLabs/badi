@@ -91,6 +91,36 @@ char *badi_session_result(const BadiSession *session, size_t index);
 /* NULL-safe. Frees the handle and every row it owns. */
 void badi_session_destroy(BadiSession *session);
 
+/* Aggregate CPU counters from /proc/stat (total = sum of fields). */
+typedef struct {
+  unsigned long long total;
+  unsigned long long idle;
+} BadiCpuSnapshot;
+
+/* Memory totals in bytes; used_percent is 0..1. */
+typedef struct {
+  unsigned long long total_bytes;
+  unsigned long long avail_bytes;
+  double used_percent;
+} BadiMemInfo;
+
+/*
+ * Fill `out` with current CPU counters. 0 on success, -1 on NULL out
+ * or read/parse failure. Pair two snapshots with badi_cpu_usage_between.
+ */
+int badi_cpu_snapshot(BadiCpuSnapshot *out);
+
+/*
+ * Utilization fraction 0..1 between two snapshots, or -1 when the pair is
+ * invalid (NULL, zero delta, counters backwards). The first sample of a
+ * session has no previous sample: expect -1 once.
+ */
+double badi_cpu_usage_between(const BadiCpuSnapshot *prev,
+                              const BadiCpuSnapshot *cur);
+
+/* Fill `out` with current memory totals. 0 on success, -1 on failure. */
+int badi_mem_snapshot(BadiMemInfo *out);
+
 #ifdef __cplusplus
 }
 #endif

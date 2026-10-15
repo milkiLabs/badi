@@ -18,6 +18,38 @@ class BadiLib {
           lookup)
       : _lookup = lookup;
 
+  int badi_cpu_snapshot(
+    ffi.Pointer<BadiCpuSnapshot> out,
+  ) {
+    return _badi_cpu_snapshot(
+      out,
+    );
+  }
+
+  late final _badi_cpu_snapshotPtr = _lookup<
+          ffi.NativeFunction<ffi.Int Function(ffi.Pointer<BadiCpuSnapshot>)>>(
+      'badi_cpu_snapshot');
+  late final _badi_cpu_snapshot = _badi_cpu_snapshotPtr
+      .asFunction<int Function(ffi.Pointer<BadiCpuSnapshot>)>();
+
+  double badi_cpu_usage_between(
+    ffi.Pointer<BadiCpuSnapshot> prev,
+    ffi.Pointer<BadiCpuSnapshot> cur,
+  ) {
+    return _badi_cpu_usage_between(
+      prev,
+      cur,
+    );
+  }
+
+  late final _badi_cpu_usage_betweenPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Double Function(ffi.Pointer<BadiCpuSnapshot>,
+              ffi.Pointer<BadiCpuSnapshot>)>>('badi_cpu_usage_between');
+  late final _badi_cpu_usage_between = _badi_cpu_usage_betweenPtr.asFunction<
+      double Function(
+          ffi.Pointer<BadiCpuSnapshot>, ffi.Pointer<BadiCpuSnapshot>)>();
+
   void badi_free_string(
     ffi.Pointer<ffi.Char> s,
   ) {
@@ -31,6 +63,20 @@ class BadiLib {
           'badi_free_string');
   late final _badi_free_string =
       _badi_free_stringPtr.asFunction<void Function(ffi.Pointer<ffi.Char>)>();
+
+  int badi_mem_snapshot(
+    ffi.Pointer<BadiMemInfo> out,
+  ) {
+    return _badi_mem_snapshot(
+      out,
+    );
+  }
+
+  late final _badi_mem_snapshotPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<BadiMemInfo>)>>(
+          'badi_mem_snapshot');
+  late final _badi_mem_snapshot = _badi_mem_snapshotPtr
+      .asFunction<int Function(ffi.Pointer<BadiMemInfo>)>();
 
   int badi_session_append(
     ffi.Pointer<BadiSession> session,
@@ -269,6 +315,45 @@ class BadiLib {
               ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_title');
   late final _badi_session_title = _badi_session_titlePtr.asFunction<
       ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int)>();
+}
+
+final class BadiCpuSnapshot extends ffi.Struct {
+  @ffi.UnsignedLongLong()
+  external int total;
+
+  @ffi.UnsignedLongLong()
+  external int idle;
+
+  static ffi.Pointer<BadiCpuSnapshot> $allocate(
+    ffi.Allocator $allocator, {
+    required int total,
+    required int idle,
+  }) =>
+      $allocator<BadiCpuSnapshot>()
+        ..ref.total = total
+        ..ref.idle = idle;
+}
+
+final class BadiMemInfo extends ffi.Struct {
+  @ffi.UnsignedLongLong()
+  external int total_bytes;
+
+  @ffi.UnsignedLongLong()
+  external int avail_bytes;
+
+  @ffi.Double()
+  external double used_percent;
+
+  static ffi.Pointer<BadiMemInfo> $allocate(
+    ffi.Allocator $allocator, {
+    required int total_bytes,
+    required int avail_bytes,
+    required double used_percent,
+  }) =>
+      $allocator<BadiMemInfo>()
+        ..ref.total_bytes = total_bytes
+        ..ref.avail_bytes = avail_bytes
+        ..ref.used_percent = used_percent;
 }
 
 final class BadiSession extends ffi.Opaque {}
