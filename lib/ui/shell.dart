@@ -24,6 +24,7 @@ import 'launcher_page.dart';
 import 'popup_window.dart';
 import 'bluetooth_popup.dart';
 import 'clock_popup.dart';
+import 'power_popup.dart';
 import 'sysmon_popup.dart';
 import 'wifi_popup.dart';
 
@@ -157,6 +158,17 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
           monitor: monitor,
           namespace: clockPopupConfig.namespace,
         );
+      case 'power':
+        return LayershellWindowController(
+          layer: LayerShellLayer.overlay,
+          anchorEdges: const [LayerShellEdge.top, LayerShellEdge.right],
+          keyboardMode: LayerShellKeyboardMode.none,
+          width: powerPopupConfig.width,
+          height: powerPopupConfig.height,
+          exclusiveZone: powerPopupConfig.exclusiveZone,
+          monitor: monitor,
+          namespace: powerPopupConfig.namespace,
+        );
       default:
         throw ArgumentError('Unknown popup key: $key');
     }
@@ -192,6 +204,11 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
       clockPopupConfig,
       const ClockPopupContent(),
     );
+    final powerPopup = buildPopupView(
+      'power',
+      powerPopupConfig,
+      const PowerPopupContent(),
+    );
     return ViewCollection(
       views: [
         LayerShellWindow(
@@ -206,6 +223,8 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
                   onTriggerHover('sysmon', hovering),
               onClockHover: (hovering) =>
                   onTriggerHover('clock', hovering),
+              onPowerHover: (hovering) =>
+                  onTriggerHover('power', hovering),
             ),
           ),
         ),
@@ -224,6 +243,7 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
         if (bluetoothPopup != null) bluetoothPopup,
         if (sysmonPopup != null) sysmonPopup,
         if (clockPopup != null) clockPopup,
+        if (powerPopup != null) powerPopup,
       ],
     );
   }
