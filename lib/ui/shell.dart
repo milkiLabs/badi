@@ -23,6 +23,7 @@ import 'bar_page.dart';
 import 'launcher_page.dart';
 import 'popup_window.dart';
 import 'bluetooth_popup.dart';
+import 'clock_popup.dart';
 import 'sysmon_popup.dart';
 import 'wifi_popup.dart';
 
@@ -56,7 +57,7 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
   void initState() {
     super.initState();
     final monitor = listMonitors().firstOrNull;
-    // A 32px bar pinned to the top; the exclusive zone keeps maximized
+    // A 36px bar pinned to the top; the exclusive zone keeps maximized
     // windows out of the strip.
     _bar = LayershellWindowController(
       layer: LayerShellLayer.top,
@@ -66,8 +67,8 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
         LayerShellEdge.right,
       ],
       keyboardMode: LayerShellKeyboardMode.none,
-      height: 32,
-      exclusiveZone: 32,
+      height: 36,
+      exclusiveZone: 36,
       monitor: monitor?.gdkMonitor,
       namespace: 'badi-bar',
     );
@@ -145,6 +146,17 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
           monitor: monitor,
           namespace: sysmonPopupConfig.namespace,
         );
+      case 'clock':
+        return LayershellWindowController(
+          layer: LayerShellLayer.overlay,
+          anchorEdges: const [LayerShellEdge.top],
+          keyboardMode: LayerShellKeyboardMode.none,
+          width: clockPopupConfig.width,
+          height: clockPopupConfig.height,
+          exclusiveZone: clockPopupConfig.exclusiveZone,
+          monitor: monitor,
+          namespace: clockPopupConfig.namespace,
+        );
       default:
         throw ArgumentError('Unknown popup key: $key');
     }
@@ -175,6 +187,11 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
       sysmonPopupConfig,
       const SysmonPopupContent(),
     );
+    final clockPopup = buildPopupView(
+      'clock',
+      clockPopupConfig,
+      const ClockPopupContent(),
+    );
     return ViewCollection(
       views: [
         LayerShellWindow(
@@ -187,6 +204,8 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
                   onTriggerHover('bluetooth', hovering),
               onSysmonHover: (hovering) =>
                   onTriggerHover('sysmon', hovering),
+              onClockHover: (hovering) =>
+                  onTriggerHover('clock', hovering),
             ),
           ),
         ),
@@ -204,6 +223,7 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
         if (wifiPopup != null) wifiPopup,
         if (bluetoothPopup != null) bluetoothPopup,
         if (sysmonPopup != null) sysmonPopup,
+        if (clockPopup != null) clockPopup,
       ],
     );
   }
