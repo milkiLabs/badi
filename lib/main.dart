@@ -25,11 +25,15 @@ import 'package:material_ui/material_ui.dart';
 import 'platform/ipc.dart';
 import 'shell/shell_controller.dart';
 import 'ui/shell.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'prayers/shared_pref.dart';
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help') || args.contains('-h')) {
     stdout.writeln('Usage: badi [--launcher]');
-    stdout.writeln('  (no args) run the long-lived shell (top bar + launcher server)');
+    stdout.writeln(
+        '  (no args) run the long-lived shell (top bar + launcher server)');
     stdout.writeln('  --launcher open the launcher via the running daemon,');
     stdout.writeln('             or one-shot when no daemon is listening.');
     await stdout.flush();
@@ -75,10 +79,14 @@ Future<void> _openLauncher() async {
   runWidget(BadiOneShot(piped: piped));
 }
 
-/// Daemon: bar + hidden launcher + IPC server. Owns no stdin/stdout.
 Future<void> _runShell() async {
   WidgetsFlutterBinding.ensureInitialized();
   initLayerShell();
+
+  // Same prerequisites the regular app's main does before runApp.
+  await SharedPreferencesService.ensureInitialized();
+  tzdata.initializeTimeZones();
+
   final shell = ShellController();
   try {
     await serveIpc(shell, ipcSocketPath());
@@ -86,7 +94,7 @@ Future<void> _runShell() async {
     stderr.writeln('badi: cannot bind ${ipcSocketPath()}: $e');
     exit(1);
   }
-  runWidget(BadiShell(shell: shell));
+  runWidget(ProviderScope(child: BadiShell(shell: shell)));
 }
 
 /// Piped input lines, or null when running attached to a terminal.

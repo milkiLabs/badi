@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ffi' as ffi;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:layer_shell/layer_shell.dart';
 
 import 'app_theme.dart';
@@ -156,6 +156,7 @@ mixin PopupSurfaceMixin<T extends StatefulWidget> on State<T> {
       controller: controller,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: ThemeData.dark().copyWith(
           scaffoldBackgroundColor: AppColors.background,
         ),

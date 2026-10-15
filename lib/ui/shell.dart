@@ -33,6 +33,7 @@ import 'wifi_popup.dart';
 Widget _surface({required Widget home}) {
   return MaterialApp(
     debugShowCheckedModeBanner: false,
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     theme: ThemeData.dark().copyWith(
       scaffoldBackgroundColor: AppColors.background,
     ),
@@ -50,7 +51,8 @@ class BadiShell extends StatefulWidget {
   State<BadiShell> createState() => _BadiShellState();
 }
 
-class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell> {
+class _BadiShellState extends State<BadiShell>
+    with PopupSurfaceMixin<BadiShell> {
   late final LayershellWindowController _bar;
   LayershellWindowController? _launcher;
 
@@ -151,7 +153,7 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
         return LayershellWindowController(
           layer: LayerShellLayer.overlay,
           anchorEdges: const [LayerShellEdge.top],
-          keyboardMode: LayerShellKeyboardMode.none,
+          keyboardMode: LayerShellKeyboardMode.onDemand,
           width: clockPopupConfig.width,
           height: clockPopupConfig.height,
           exclusiveZone: clockPopupConfig.exclusiveZone,
@@ -202,7 +204,9 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
     final clockPopup = buildPopupView(
       'clock',
       clockPopupConfig,
-      const ClockPopupContent(),
+      ClockPopupContent(
+        onHoverChanged: (hovering) => onPopupHover('clock', hovering),
+      ),
     );
     final powerPopup = buildPopupView(
       'power',
@@ -219,12 +223,9 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
               onWifiHover: (hovering) => onTriggerHover('wifi', hovering),
               onBluetoothHover: (hovering) =>
                   onTriggerHover('bluetooth', hovering),
-              onSysmonHover: (hovering) =>
-                  onTriggerHover('sysmon', hovering),
-              onClockHover: (hovering) =>
-                  onTriggerHover('clock', hovering),
-              onPowerHover: (hovering) =>
-                  onTriggerHover('power', hovering),
+              onSysmonHover: (hovering) => onTriggerHover('sysmon', hovering),
+              onClockHover: (hovering) => onTriggerHover('clock', hovering),
+              onPowerHover: (hovering) => onTriggerHover('power', hovering),
             ),
           ),
         ),
