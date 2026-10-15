@@ -7,10 +7,12 @@ class BarBody extends StatelessWidget {
     super.key,
     required this.onOpenLauncher,
     required this.onWifiHover,
+    required this.onBluetoothHover,
   });
 
   final VoidCallback onOpenLauncher;
   final ValueChanged<bool> onWifiHover;
+  final ValueChanged<bool> onBluetoothHover;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,12 @@ class BarBody extends StatelessWidget {
               onExit: (_) => onWifiHover(false),
               cursor: SystemMouseCursors.basic,
               child: const Icon(Icons.wifi, color: AppColors.body, size: 18),
+            ),
+            MouseRegion(
+              onEnter: (_) => onBluetoothHover(true),
+              onExit: (_) => onBluetoothHover(false),
+              cursor: SystemMouseCursors.basic,
+              child: const Icon(Icons.bluetooth, color: AppColors.body, size: 18),
             ),
           ],
         ),

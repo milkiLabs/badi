@@ -22,6 +22,7 @@ import 'app_theme.dart';
 import 'bar_page.dart';
 import 'launcher_page.dart';
 import 'popup_window.dart';
+import 'bluetooth_popup.dart';
 import 'wifi_popup.dart';
 
 /// Shared dark theme for every shell surface. Each [LayerShellWindow] needs
@@ -121,6 +122,17 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
           monitor: monitor,
           namespace: wifiPopupConfig.namespace,
         );
+      case 'bluetooth':
+        return LayershellWindowController(
+          layer: LayerShellLayer.overlay,
+          anchorEdges: const [LayerShellEdge.top, LayerShellEdge.right],
+          keyboardMode: LayerShellKeyboardMode.none,
+          width: bluetoothPopupConfig.width,
+          height: bluetoothPopupConfig.height,
+          exclusiveZone: bluetoothPopupConfig.exclusiveZone,
+          monitor: monitor,
+          namespace: bluetoothPopupConfig.namespace,
+        );
       default:
         throw ArgumentError('Unknown popup key: $key');
     }
@@ -141,6 +153,11 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
     final actions = widget.shell.currentActions;
     final wifiPopup =
         buildPopupView('wifi', wifiPopupConfig, const WifiPopupContent());
+    final bluetoothPopup = buildPopupView(
+      'bluetooth',
+      bluetoothPopupConfig,
+      const BluetoothPopupContent(),
+    );
     return ViewCollection(
       views: [
         LayerShellWindow(
@@ -149,6 +166,8 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
             home: BarBody(
               onOpenLauncher: _openFromBar,
               onWifiHover: (hovering) => onTriggerHover('wifi', hovering),
+              onBluetoothHover: (hovering) =>
+                  onTriggerHover('bluetooth', hovering),
             ),
           ),
         ),
@@ -164,6 +183,7 @@ class _BadiShellState extends State<BadiShell> with PopupSurfaceMixin<BadiShell>
             ),
           ),
         if (wifiPopup != null) wifiPopup,
+        if (bluetoothPopup != null) bluetoothPopup,
       ],
     );
   }
