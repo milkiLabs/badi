@@ -41,9 +41,9 @@ So: build the native library first, always.
 One binary, three roles:
 
 ```sh
-badi --shell   # autostart: top bar always visible, launcher hidden, serves IPC
-badi           # keybinding: opens the launcher via the running daemon
-find / | badi  # dmenu style: lines stream to the daemon, the pick is printed
+badi            # autostart: top bar always visible, launcher hidden, serves IPC
+badi --launcher # keybinding: opens the launcher via the running daemon
+find / | badi   # dmenu style: lines stream to the daemon, the pick is printed
 ```
 
 Bare `badi` with no daemon listening falls back to a one-shot window with

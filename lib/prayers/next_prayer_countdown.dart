@@ -6,6 +6,7 @@ import 'package:badi/prayers/repository.dart';
 import 'package:badi/prayers/schedule.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'dart:math' as math;
 
 /// Countdown to the next prayer.
 ///
@@ -165,17 +166,19 @@ class _NextPrayerCountdownState extends ConsumerState<NextPrayerCountdown> {
                           constraints: const BoxConstraints(maxWidth: 260),
                           child: LayoutBuilder(
                             builder: (context, constraints) {
+                              final width = constraints.maxWidth;
+                              // The surface is laid out at width 0 for its first frame(s); nothing
+                              // sensible to draw yet, and the clamp below would throw.
+                              if (!width.isFinite || width < 18)
+                                return const SizedBox.shrink();
+
                               final marker = _markerFor(next.id);
-                              final dx = constraints.maxWidth * progress;
-                              // Fill runs from the leading edge, so the tip
-                              // marker must anchor there too: right in RTL,
-                              // left in LTR.
+                              final dx = width * progress;
                               final isRtl = Directionality.of(context) ==
                                   TextDirection.rtl;
-                              final tip = (dx - 9).clamp(
-                                0.0,
-                                constraints.maxWidth - 18,
-                              );
+                              final tip = (dx - 9)
+                                  .clamp(0.0, math.max(0.0, width - 18))
+                                  .toDouble();
                               return Stack(
                                 clipBehavior: Clip.none,
                                 children: [
