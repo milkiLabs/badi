@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../platform/sys_stats.dart';
 import 'app_theme.dart';
+import 'workspaces_indicator.dart';
 class BarBody extends StatelessWidget {
   const BarBody({
     super.key,
@@ -48,6 +49,8 @@ class BarBody extends StatelessWidget {
                       child: Text('Badi', style: AppTextStyles.rowTitle),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  const WorkspacesIndicator(),
                   const Spacer(),
                   MouseRegion(
                     onEnter: (_) => onSysmonHover(true),
