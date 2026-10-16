@@ -79,7 +79,7 @@ class _WorkspaceChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: active ? AppColors.selectedRow : null,
+            color: active ? AppColors.selectedRow : AppColors.row,
             borderRadius: BorderRadius.circular(6),
             border: !active && workspace.visible
                 ? Border.all(color: AppColors.hint, width: 1)
