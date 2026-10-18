@@ -15,12 +15,17 @@
 const std = @import("std");
 const session = @import("session.zig");
 const sysmon = @import("sysmon.zig");
+const desktop = @import("desktop.zig");
 
 const c_alloc = std.heap.c_allocator;
 
 /// Opaque handle owning a picker session. ABI-identical to
 /// `struct BadiSession` in `badi.h`.
 pub const BadiSession = opaque {};
+/// Opaque handle for one parsed document file.
+pub const BadiDocument = opaque {};
+/// Opaque handle for a scanned list of document files.
+pub const BadiDesktopList = opaque {};
 
 const Box = struct {
     s: session.Session,
@@ -200,6 +205,118 @@ export fn badi_cpu_usage_between(prev: ?*const BadiCpuSnapshot, cur: ?*const Bad
 export fn badi_mem_snapshot(out: ?*BadiMemInfo) callconv(.c) c_int {
     const dst = out orelse return -1;
     return if (sysmon.snapshotMem(dst)) 0 else -1;
+}
+
+// ---------------------------------------------------------------- document files (simplified parser)
+
+const DocBox = struct { doc: desktop.Document };
+const ListDocBox = struct { docs: []desktop.Document };
+
+export fn badi_document_parse(source: ?[*:0]const u8) callconv(.c) ?*BadiDocument {
+    const src = if (source) |s| std.mem.span(s) else return null;
+    const box = c_alloc.create(DocBox) catch return null;
+    box.doc = desktop.parseDoc(c_alloc, src) catch {
+        c_alloc.destroy(box);
+        return null;
+    };
+    return @ptrCast(box);
+}
+
+export fn badi_document_free(handle: ?*BadiDocument) callconv(.c) void {
+    const h = handle orelse return;
+    const box: *DocBox = @ptrCast(@alignCast(h));
+    box.doc.deinit();
+    c_alloc.destroy(box);
+}
+
+fn docOf(handle: ?*const BadiDocument) ?*const DocBox {
+    const h = handle orelse return null;
+    return @ptrCast(@alignCast(h));
+}
+
+export fn badi_document_type(handle: ?*const BadiDocument) callconv(.c) ?[*:0]u8 {
+    const box = docOf(handle) orelse return null;
+    if (box.doc.Type.len == 0) return null;
+    return dupe(box.doc.Type);
+}
+export fn badi_document_name(handle: ?*const BadiDocument) callconv(.c) ?[*:0]u8 {
+    const box = docOf(handle) orelse return null;
+    if (box.doc.Name.len == 0) return null;
+    return dupe(box.doc.Name);
+}
+export fn badi_document_icon(handle: ?*const BadiDocument) callconv(.c) ?[*:0]u8 {
+    const box = docOf(handle) orelse return null;
+    if (box.doc.Icon.len == 0) return null;
+    return dupe(box.doc.Icon);
+}
+export fn badi_document_exec(handle: ?*const BadiDocument) callconv(.c) ?[*:0]u8 {
+    const box = docOf(handle) orelse return null;
+    if (box.doc.Exec.len == 0) return null;
+    return dupe(box.doc.Exec);
+}
+
+export fn badi_desktop_scan() callconv(.c) ?*BadiDesktopList {
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const dirs = desktop.getDesktopDirs(c_alloc) catch return null;
+    defer {
+        for (dirs) |d| c_alloc.free(d);
+        c_alloc.free(dirs);
+    }
+    const docs = desktop.getParsedDesktopEntries(c_alloc, io, dirs) catch return null;
+    const box = c_alloc.create(ListDocBox) catch {
+        for (docs) |*d| d.deinit();
+        c_alloc.free(docs);
+        return null;
+    };
+    box.docs = docs;
+    return @ptrCast(box);
+}
+
+export fn badi_desktop_list_count(handle: ?*const BadiDesktopList) callconv(.c) usize {
+    const box = listDocOf(handle) orelse return 0;
+    return box.docs.len;
+}
+
+export fn badi_desktop_list_name(handle: ?*const BadiDesktopList, index: usize) callconv(.c) ?[*:0]u8 {
+    const box = listDocOf(handle) orelse return null;
+    if (index >= box.docs.len) return null;
+    const v = box.docs[index].Name;
+    if (v.len == 0) return null;
+    return dupe(v);
+}
+export fn badi_desktop_list_type(handle: ?*const BadiDesktopList, index: usize) callconv(.c) ?[*:0]u8 {
+    const box = listDocOf(handle) orelse return null;
+    if (index >= box.docs.len) return null;
+    const v = box.docs[index].Type;
+    if (v.len == 0) return null;
+    return dupe(v);
+}
+export fn badi_desktop_list_icon(handle: ?*const BadiDesktopList, index: usize) callconv(.c) ?[*:0]u8 {
+    const box = listDocOf(handle) orelse return null;
+    if (index >= box.docs.len) return null;
+    const v = box.docs[index].Icon;
+    if (v.len == 0) return null;
+    return dupe(v);
+}
+export fn badi_desktop_list_exec(handle: ?*const BadiDesktopList, index: usize) callconv(.c) ?[*:0]u8 {
+    const box = listDocOf(handle) orelse return null;
+    if (index >= box.docs.len) return null;
+    const v = box.docs[index].Exec;
+    if (v.len == 0) return null;
+    return dupe(v);
+}
+
+export fn badi_desktop_list_free(handle: ?*BadiDesktopList) callconv(.c) void {
+    const h = handle orelse return;
+    const box: *ListDocBox = @ptrCast(@alignCast(h));
+    for (box.docs) |*d| d.deinit();
+    c_alloc.free(box.docs);
+    c_alloc.destroy(box);
+}
+
+fn listDocOf(handle: ?*const BadiDesktopList) ?*const ListDocBox {
+    const h = handle orelse return null;
+    return @ptrCast(@alignCast(h));
 }
 
 // ---------------------------------------------------------------- helpers

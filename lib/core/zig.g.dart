@@ -50,6 +50,201 @@ class BadiLib {
       double Function(
           ffi.Pointer<BadiCpuSnapshot>, ffi.Pointer<BadiCpuSnapshot>)>();
 
+  int badi_desktop_list_count(
+    ffi.Pointer<BadiDesktopList> list,
+  ) {
+    return _badi_desktop_list_count(
+      list,
+    );
+  }
+
+  late final _badi_desktop_list_countPtr = _lookup<
+          ffi.NativeFunction<ffi.Size Function(ffi.Pointer<BadiDesktopList>)>>(
+      'badi_desktop_list_count');
+  late final _badi_desktop_list_count = _badi_desktop_list_countPtr
+      .asFunction<int Function(ffi.Pointer<BadiDesktopList>)>();
+
+  ffi.Pointer<ffi.Char> badi_desktop_list_exec(
+    ffi.Pointer<BadiDesktopList> list,
+    int index,
+  ) {
+    return _badi_desktop_list_exec(
+      list,
+      index,
+    );
+  }
+
+  late final _badi_desktop_list_execPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>,
+              ffi.Size)>>('badi_desktop_list_exec');
+  late final _badi_desktop_list_exec = _badi_desktop_list_execPtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>, int)>();
+
+  void badi_desktop_list_free(
+    ffi.Pointer<BadiDesktopList> list,
+  ) {
+    return _badi_desktop_list_free(
+      list,
+    );
+  }
+
+  late final _badi_desktop_list_freePtr = _lookup<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<BadiDesktopList>)>>(
+      'badi_desktop_list_free');
+  late final _badi_desktop_list_free = _badi_desktop_list_freePtr
+      .asFunction<void Function(ffi.Pointer<BadiDesktopList>)>();
+
+  ffi.Pointer<ffi.Char> badi_desktop_list_icon(
+    ffi.Pointer<BadiDesktopList> list,
+    int index,
+  ) {
+    return _badi_desktop_list_icon(
+      list,
+      index,
+    );
+  }
+
+  late final _badi_desktop_list_iconPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>,
+              ffi.Size)>>('badi_desktop_list_icon');
+  late final _badi_desktop_list_icon = _badi_desktop_list_iconPtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>, int)>();
+
+  ffi.Pointer<ffi.Char> badi_desktop_list_name(
+    ffi.Pointer<BadiDesktopList> list,
+    int index,
+  ) {
+    return _badi_desktop_list_name(
+      list,
+      index,
+    );
+  }
+
+  late final _badi_desktop_list_namePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>,
+              ffi.Size)>>('badi_desktop_list_name');
+  late final _badi_desktop_list_name = _badi_desktop_list_namePtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>, int)>();
+
+  ffi.Pointer<ffi.Char> badi_desktop_list_type(
+    ffi.Pointer<BadiDesktopList> list,
+    int index,
+  ) {
+    return _badi_desktop_list_type(
+      list,
+      index,
+    );
+  }
+
+  late final _badi_desktop_list_typePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>,
+              ffi.Size)>>('badi_desktop_list_type');
+  late final _badi_desktop_list_type = _badi_desktop_list_typePtr.asFunction<
+      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDesktopList>, int)>();
+
+  ffi.Pointer<BadiDesktopList> badi_desktop_scan() {
+    return _badi_desktop_scan();
+  }
+
+  late final _badi_desktop_scanPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<BadiDesktopList> Function()>>(
+          'badi_desktop_scan');
+  late final _badi_desktop_scan = _badi_desktop_scanPtr
+      .asFunction<ffi.Pointer<BadiDesktopList> Function()>();
+
+  ffi.Pointer<ffi.Char> badi_document_exec(
+    ffi.Pointer<BadiDocument> doc,
+  ) {
+    return _badi_document_exec(
+      doc,
+    );
+  }
+
+  late final _badi_document_execPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+              ffi.Pointer<BadiDocument>)>>('badi_document_exec');
+  late final _badi_document_exec = _badi_document_execPtr
+      .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDocument>)>();
+
+  void badi_document_free(
+    ffi.Pointer<BadiDocument> doc,
+  ) {
+    return _badi_document_free(
+      doc,
+    );
+  }
+
+  late final _badi_document_freePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<BadiDocument>)>>(
+          'badi_document_free');
+  late final _badi_document_free = _badi_document_freePtr
+      .asFunction<void Function(ffi.Pointer<BadiDocument>)>();
+
+  ffi.Pointer<ffi.Char> badi_document_icon(
+    ffi.Pointer<BadiDocument> doc,
+  ) {
+    return _badi_document_icon(
+      doc,
+    );
+  }
+
+  late final _badi_document_iconPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+              ffi.Pointer<BadiDocument>)>>('badi_document_icon');
+  late final _badi_document_icon = _badi_document_iconPtr
+      .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDocument>)>();
+
+  ffi.Pointer<ffi.Char> badi_document_name(
+    ffi.Pointer<BadiDocument> doc,
+  ) {
+    return _badi_document_name(
+      doc,
+    );
+  }
+
+  late final _badi_document_namePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+              ffi.Pointer<BadiDocument>)>>('badi_document_name');
+  late final _badi_document_name = _badi_document_namePtr
+      .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDocument>)>();
+
+  ffi.Pointer<BadiDocument> badi_document_parse(
+    ffi.Pointer<ffi.Char> source,
+  ) {
+    return _badi_document_parse(
+      source,
+    );
+  }
+
+  late final _badi_document_parsePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<BadiDocument> Function(
+              ffi.Pointer<ffi.Char>)>>('badi_document_parse');
+  late final _badi_document_parse = _badi_document_parsePtr
+      .asFunction<ffi.Pointer<BadiDocument> Function(ffi.Pointer<ffi.Char>)>();
+
+  ffi.Pointer<ffi.Char> badi_document_type(
+    ffi.Pointer<BadiDocument> doc,
+  ) {
+    return _badi_document_type(
+      doc,
+    );
+  }
+
+  late final _badi_document_typePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+              ffi.Pointer<BadiDocument>)>>('badi_document_type');
+  late final _badi_document_type = _badi_document_typePtr
+      .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiDocument>)>();
+
   void badi_free_string(
     ffi.Pointer<ffi.Char> s,
   ) {
@@ -333,6 +528,10 @@ final class BadiCpuSnapshot extends ffi.Struct {
         ..ref.total = total
         ..ref.idle = idle;
 }
+
+final class BadiDesktopList extends ffi.Opaque {}
+
+final class BadiDocument extends ffi.Opaque {}
 
 final class BadiMemInfo extends ffi.Struct {
   @ffi.UnsignedLongLong()

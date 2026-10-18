@@ -5,6 +5,8 @@ const Allocator = std.mem.Allocator;
 const app = @import("app.zig");
 const icons = @import("icons.zig");
 const parse = @import("parse.zig");
+const exec = @import("exec.zig");
+const desktop = @import("desktop.zig");
 const text = @import("text.zig");
 
 pub const App = app.App;
@@ -125,11 +127,49 @@ const Scanner = struct {
             return;
         };
         defer self.gpa.free(source);
-        const one = try parse.parseOne(self.arena, source, self.locale, fs_path, &self.index, self.io);
-        if (one) |a| {
-            if (isKnownApp(self.found.items, a.name, a.argv)) return; // same app, other file
-            try self.found.append(self.arena, a);
+        var doc = desktop.parseDoc(self.arena, source) catch |err| {
+            if (err == error.OutOfMemory) return error.OutOfMemory;
+            return;
+        };
+        defer doc.deinit();
+        if (!std.mem.eql(u8, doc.Type, "Application")) return;
+        if (doc.Name.len == 0 or doc.Exec.len == 0) return;
+        const app_name = try self.arena.dupe(u8, doc.Name);
+        const app_exec = try self.arena.dupe(u8, doc.Exec);
+        const app_icon = if (doc.Icon.len > 0) try self.arena.dupe(u8, doc.Icon) else null;
+        const argv = exec.expandExec(self.arena, app_exec, .{
+            .icon = app_icon,
+            .name = app_name,
+            .location = fs_path,
+        }) catch return;
+        const icon_path = try self.index.resolve(self.arena, self.io, app_icon);
+        // Lowercase search blob over display/search fields.
+        const parts = [_]?[]const u8{ app_name, app_exec };
+        const empty: []const u8 = "";
+        var hay_len: usize = 0;
+        for (&parts) |*p| hay_len += (p.* orelse empty).len + 1;
+        const hay_buf = try self.arena.alloc(u8, hay_len);
+        var n: usize = 0;
+        for (&parts) |*p| {
+            const sval = p.* orelse empty;
+            for (sval) |c| {
+                hay_buf[n] = std.ascii.toLower(c);
+                n += 1;
+            }
+            hay_buf[n] = ' ';
+            n += 1;
         }
+        const a: App = .{
+            .name = app_name,
+            .argv = argv,
+            .icon_path = icon_path,
+            .comment = null,
+            .path = null,
+            .terminal = false,
+            .hay = hay_buf[0..n],
+        };
+        if (isKnownApp(self.found.items, a.name, a.argv)) return;
+        try self.found.append(self.arena, a);
     }
 };
 

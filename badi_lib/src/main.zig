@@ -1,28 +1,24 @@
 const std = @import("std");
-const session = @import("session.zig");
+const desktop = @import("desktop.zig");
 
 pub fn main(init: std.process.Init) !void {
-    const gpa = init.gpa;
     const io = init.io;
+    const gpa = init.gpa;
 
-    var s = try session.Session.initApps(gpa, io, null);
-    defer s.deinit();
-
-    var stdout_buffer: [4096]u8 = undefined;
-    var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
-    const out = &stdout_writer.interface;
-
-    try out.print("found {d} apps\n", .{s.count()});
-    for (0..@min(s.count(), 5)) |i| {
-        const e = s.row(i).?;
-        try out.print("  {s} icon={s}\n", .{ e.title, e.icon orelse "(none)" });
+    const desktop_dirs = try desktop.getDesktopDirs(gpa);
+    defer {
+        for (desktop_dirs) |dir| gpa.free(dir);
+        gpa.free(desktop_dirs);
     }
 
-    try s.setQuery("term");
-    try out.print("search \"term\": {d} hits\n", .{s.count()});
-    for (0..@min(s.count(), 3)) |i| {
-        try out.print("  {s}\n", .{ s.row(i).?.title });
+    const docs = try desktop.getParsedDesktopEntries(gpa, io, desktop_dirs);
+    defer {
+        for (docs) |*doc| doc.deinit();
+        gpa.free(docs);
     }
 
-    try out.flush();
+    for (docs) |doc| {
+        std.debug.print("{f}\n", .{doc});
+    }
+    std.debug.print("Parsed {d} desktop entries\n", .{docs.len});
 }

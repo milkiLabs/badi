@@ -11,6 +11,11 @@ extern "C" {
 /* Opaque handle owning a picker session (apps or piped lines). */
 typedef struct BadiSession BadiSession;
 
+/* Opaque handle for one parsed document (.desktop) file. */
+typedef struct BadiDocument BadiDocument;
+/* Opaque handle for a scanned list of document files. */
+typedef struct BadiDesktopList BadiDesktopList;
+
 /* NULL-safe. Only for strings returned by the getters below. */
 void badi_free_string(char *s);
 
@@ -124,5 +129,26 @@ int badi_mem_snapshot(BadiMemInfo *out);
 #ifdef __cplusplus
 }
 #endif
+
+
+/*
+ * Simplified document (.desktop) parser. Parses only Type/Name/Icon/Exec
+ * from the first [Desktop Entry] group.
+ */
+BadiDocument *badi_document_parse(const char *source);
+void badi_document_free(BadiDocument *doc);
+char *badi_document_type(const BadiDocument *doc);
+char *badi_document_name(const BadiDocument *doc);
+char *badi_document_icon(const BadiDocument *doc);
+char *badi_document_exec(const BadiDocument *doc);
+
+BadiDesktopList *badi_desktop_scan(void);
+size_t badi_desktop_list_count(const BadiDesktopList *list);
+char *badi_desktop_list_name(const BadiDesktopList *list, size_t index);
+char *badi_desktop_list_type(const BadiDesktopList *list, size_t index);
+char *badi_desktop_list_icon(const BadiDesktopList *list, size_t index);
+char *badi_desktop_list_exec(const BadiDesktopList *list, size_t index);
+void badi_desktop_list_free(BadiDesktopList *list);
+
 
 #endif
