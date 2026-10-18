@@ -104,14 +104,6 @@ export fn badi_session_subtitle(handle: ?*const BadiSession, index: usize) callc
     return dupe(v);
 }
 
-/// Shown row icon file. NULL when missing/bad/OOM, and always NULL in
-/// lines mode.
-export fn badi_session_icon(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
-    const e = rowOf(handle, index) orelse return null;
-    const v = e.icon orelse return null;
-    return dupe(v);
-}
-
 /// Launch argv length for shown row `index`. 0 when the handle/row is bad
 /// or the row is not launchable (lines mode).
 export fn badi_session_arg_count(handle: ?*const BadiSession, index: usize) callconv(.c) usize {

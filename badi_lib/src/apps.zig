@@ -3,8 +3,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const app = @import("app.zig");
-const icons = @import("icons.zig");
-const parse = @import("parse.zig");
 const exec = @import("exec.zig");
 const desktop = @import("desktop.zig");
 const text = @import("text.zig");
@@ -35,11 +33,9 @@ pub fn scan(gpa: Allocator, io: std.Io, locale: ?[]const u8) Allocator.Error!App
     errdefer list.arena.deinit();
     const arena = list.arena.allocator();
 
-    // $HOME is read here from libc instead of threading it through FFI/Dart.
-    // The user data dir is resolved once and shared by app dirs and icons.
     const home = getenv("HOME");
     const data_home = try dataHome(arena, home, getenv("XDG_DATA_HOME"));
-    var scanner = try Scanner.init(gpa, arena, io, locale, home, data_home);
+    var scanner = try Scanner.init(gpa, arena, io, locale);
     for (try appDirs(arena, data_home)) |maybe_dir| {
         // dir may be null HOME and XDG_DATA_HOME can both be unset
         const desktop_dir = maybe_dir orelse continue;
@@ -82,19 +78,17 @@ const Scanner = struct {
     arena: Allocator,
     io: std.Io,
     locale: ?[]const u8,
-    index: icons.IconIndex,
     /// File names already taken by a higher-precedence dir. Keys are
     /// arena copies: iterator names die on the next call.
     seen_ids: std.StringHashMap(void),
     found: std.ArrayList(App),
 
-    fn init(gpa: Allocator, arena: Allocator, io: std.Io, locale: ?[]const u8, home: ?[]const u8, data_home: ?[]const u8) Allocator.Error!Scanner {
+    fn init(gpa: Allocator, arena: Allocator, io: std.Io, locale: ?[]const u8) Allocator.Error!Scanner {
         return .{
             .gpa = gpa,
             .arena = arena,
             .io = io,
             .locale = locale,
-            .index = try icons.IconIndex.build(arena, io, home, data_home),
             .seen_ids = .init(arena),
             .found = .empty,
         };
@@ -136,13 +130,10 @@ const Scanner = struct {
         if (doc.Name.len == 0 or doc.Exec.len == 0) return;
         const app_name = try self.arena.dupe(u8, doc.Name);
         const app_exec = try self.arena.dupe(u8, doc.Exec);
-        const app_icon = if (doc.Icon.len > 0) try self.arena.dupe(u8, doc.Icon) else null;
         const argv = exec.expandExec(self.arena, app_exec, .{
-            .icon = app_icon,
             .name = app_name,
             .location = fs_path,
         }) catch return;
-        const icon_path = try self.index.resolve(self.arena, self.io, app_icon);
         // Lowercase search blob over display/search fields.
         const parts = [_]?[]const u8{ app_name, app_exec };
         const empty: []const u8 = "";
@@ -162,7 +153,6 @@ const Scanner = struct {
         const a: App = .{
             .name = app_name,
             .argv = argv,
-            .icon_path = icon_path,
             .comment = null,
             .path = null,
             .terminal = false,

@@ -2,8 +2,8 @@
 //! about from the first `[Desktop Entry]` group (Type, Name, Icon, Exec).
 //!
 //! This is the "document file" parser used by the CLI and exposed over FFI.
-//! It deliberately does less than `parse.zig` (no locale, no exec expansion,
-//! no validation): callers that need those layer them on top.
+//! It deliberately stays minimal (no locale, no exec expansion, no validation):
+//! callers that need those layer them on top.
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

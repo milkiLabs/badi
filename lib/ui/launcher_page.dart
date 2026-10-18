@@ -8,7 +8,6 @@ import '../core/launcher_controller.dart';
 import '../core/session.dart';
 import '../platform/process_actions.dart';
 import '../platform/zig.dart';
-import 'app_icon.dart';
 import 'app_theme.dart';
 
 /// Launcher content: search field on top, virtualized selectable list.
@@ -249,9 +248,16 @@ class _LauncherBodyState extends State<LauncherBody> {
                       SizedBox(
                         width: 36,
                         height: 36,
-                        child: AppIcon(
-                          iconPath: item.iconPath,
-                          fallback: item.title,
+                        child: ColoredBox(
+                          color: AppColors.selectedRow,
+                          child: Center(
+                            child: Text(
+                              item.title.trim().isEmpty
+                                  ? '?'
+                                  : item.title.trim()[0].toUpperCase(),
+                              style: AppTextStyles.placeholderLetter,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),

@@ -391,23 +391,6 @@ class BadiLib {
   late final _badi_session_destroy = _badi_session_destroyPtr
       .asFunction<void Function(ffi.Pointer<BadiSession>)>();
 
-  ffi.Pointer<ffi.Char> badi_session_icon(
-    ffi.Pointer<BadiSession> session,
-    int index,
-  ) {
-    return _badi_session_icon(
-      session,
-      index,
-    );
-  }
-
-  late final _badi_session_iconPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_icon');
-  late final _badi_session_icon = _badi_session_iconPtr.asFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int)>();
-
   int badi_session_is_terminal(
     ffi.Pointer<BadiSession> session,
     int index,

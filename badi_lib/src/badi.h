@@ -47,12 +47,11 @@ size_t badi_session_count(const BadiSession *session);
 
 /*
  * Each getter returns an owned NUL-terminated copy, or NULL when the
- * handle/row is bad, the value is missing, or on OOM. subtitle/icon are
+ * handle/row is bad, the value is missing, or on OOM. subtitle is
  * always NULL in lines mode.
  */
 char *badi_session_title(const BadiSession *session, size_t index);
 char *badi_session_subtitle(const BadiSession *session, size_t index);
-char *badi_session_icon(const BadiSession *session, size_t index);
 
 /*
  * Append piped lines to a lines-mode session (copied). Newcomers matching

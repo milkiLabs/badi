@@ -8,7 +8,6 @@ pub const App = struct {
     /// `Exec` expanded to launch arguments: field codes resolved, quoting
     /// applied, no targets (a launcher starts the app bare).
     argv: []const []const u8 = &.{},
-    icon_path: ?[]const u8 = null,
     comment: ?[]const u8 = null,
     /// Working directory to launch in.
     path: ?[]const u8 = null,

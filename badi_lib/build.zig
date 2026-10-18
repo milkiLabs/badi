@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) void {
 
     // Unit tests (link libc: apps.zig reads the environment via std.c).
     const test_cmd = b.step("test", "Run unit tests");
-    for ([_][]const u8{ "src/apps.zig", "src/icons.zig", "src/parse.zig", "src/exec.zig", "src/session.zig", "src/ffi.zig", "src/sysmon.zig" }) |file| {
+    for ([_][]const u8{ "src/apps.zig", "src/exec.zig", "src/session.zig", "src/ffi.zig", "src/sysmon.zig", "src/desktop.zig" }) |file| {
         const t = b.addTest(.{
             .root_module = b.createModule(.{
                 .root_source_file = b.path(file),

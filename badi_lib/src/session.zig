@@ -13,7 +13,6 @@ const text = @import("text.zig");
 pub const Entry = struct {
     title: []const u8,
     subtitle: ?[]const u8,
-    icon: ?[]const u8,
     hay: []const u8,
     app: ?usize,
 };
@@ -45,7 +44,6 @@ pub const Session = struct {
             try entries.append(arena, .{
                 .title = a.name,
                 .subtitle = a.comment,
-                .icon = a.icon_path,
                 .hay = a.hay,
                 .app = i,
             });
@@ -154,7 +152,6 @@ fn dupeEntries(entries: *std.ArrayList(Entry), arena: Allocator, lines: []const 
         try entries.append(arena, .{
             .title = title,
             .subtitle = null,
-            .icon = null,
             .hay = try text.lowerDup(arena, title),
             .app = null,
         });

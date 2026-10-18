@@ -13,13 +13,11 @@ class SessionRow {
     required this.id,
     required this.title,
     this.subtitle,
-    this.iconPath,
   });
 
   final int id;
   final String title;
   final String? subtitle;
-  final String? iconPath;
 }
 
 /// What to spawn for one apps-mode row. Plain data: any frontend can
@@ -153,7 +151,6 @@ class Session implements Finalizable {
       id: i,
       title: title,
       subtitle: _string(_lib.badi_session_subtitle(_handle, i)),
-      iconPath: _string(_lib.badi_session_icon(_handle, i)),
     );
   }
 
