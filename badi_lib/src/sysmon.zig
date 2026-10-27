@@ -66,49 +66,52 @@ pub fn cpuUsageBetween(prev: CpuSnapshot, cur: CpuSnapshot) f64 {
     return @min(1.0, @max(0.0, used));
 }
 
-/// Parse /proc/meminfo content. Uses MemAvailable when present,
-/// otherwise falls back to MemFree+Buffers+Cached. Returns null when
-/// MemTotal is missing or zero.
+fn valueAfter(line: []const u8, prefix: []const u8) ?u64 {
+    if (!std.mem.startsWith(u8, line, prefix)) return null;
+    var tok = std.mem.tokenizeAny(u8, line[prefix.len..], " \t");
+    const num = tok.next() orelse return null;
+    return std.fmt.parseInt(u64, num, 10) catch null;
+}
+
 pub fn parseMeminfo(content: []const u8) ?MemInfo {
-    var total_kb: u64 = 0;
+    var total_kb: ?u64 = null;
     var avail_kb: ?u64 = null;
-    var free_kb: u64 = 0;
-    var buffers_kb: u64 = 0;
-    var cached_kb: u64 = 0;
 
     var lines = std.mem.splitScalar(u8, content, '\n');
     while (lines.next()) |line| {
-        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
-        const key = std.mem.trim(u8, line[0..colon], " \t");
-        const rest = std.mem.trim(u8, line[colon + 1 ..], " \t");
-        // Value is the first whitespace-separated token (kB unit follows).
-        var tok = std.mem.tokenizeAny(u8, rest, " \t");
-        const num_str = tok.next() orelse continue;
-        const kb = std.fmt.parseInt(u64, num_str, 10) catch continue;
-        if (std.mem.eql(u8, key, "MemTotal")) {
-            total_kb = kb;
-        } else if (std.mem.eql(u8, key, "MemAvailable")) {
-            avail_kb = kb;
-        } else if (std.mem.eql(u8, key, "MemFree")) {
-            free_kb = kb;
-        } else if (std.mem.eql(u8, key, "Buffers")) {
-            buffers_kb = kb;
-        } else if (std.mem.eql(u8, key, "Cached")) {
-            cached_kb = kb;
+        if (valueAfter(line, "MemTotal:")) |v| {
+            total_kb = v;
+        } else if (valueAfter(line, "MemAvailable:")) |v| {
+            avail_kb = v;
         }
+        if (total_kb != null and avail_kb != null) break;
     }
-    if (total_kb == 0) return null;
-    const avail = avail_kb orelse (free_kb +| buffers_kb +| cached_kb);
-    const avail_clamped = @min(avail, total_kb);
-    const total_bytes = total_kb * 1024;
-    const avail_bytes = avail_clamped * 1024;
-    const used: f64 = 1.0 - @as(f64, @floatFromInt(avail_clamped)) /
-        @as(f64, @floatFromInt(total_kb));
+
+    const total = total_kb orelse return null;
+    const avail = avail_kb orelse return null;
+
     return .{
-        .total_bytes = total_bytes,
-        .avail_bytes = avail_bytes,
-        .used_percent = @min(1.0, @max(0.0, used)),
+        .total_bytes = total * 1024,
+        .avail_bytes = avail * 1024,
+        .used_percent = @as(f64, @floatFromInt(total - avail)) /
+            @as(f64, @floatFromInt(total)),
     };
+}
+
+pub fn readMeminfo(io: std.Io) !MemInfo {
+    const file = try std.Io.Dir.cwd().openFile(io, "/proc/meminfo", .{});
+    defer file.close(io);
+
+    var buf: [512]u8 = undefined;
+    const n = try file.readPositionalAll(io, &buf, 0);
+    return parseMeminfo(buf[0..n]) orelse error.InvalidMeminfo;
+}
+
+/// Fill `out` with current memory info. False on read/parse failure.
+pub fn snapshotMem(out: *MemInfo) bool {
+    const io = std.Io.Threaded.global_single_threaded.io();
+    out.* = readMeminfo(io) catch return false;
+    return true;
 }
 
 /// Fill `out` with the current CPU counters. False on read/parse failure.
@@ -118,16 +121,6 @@ pub fn snapshotCpu(out: *CpuSnapshot) bool {
     const src = readProc(io, "/proc/stat", &buf) orelse return false;
     const s = parseCpuStat(src) orelse return false;
     out.* = s;
-    return true;
-}
-
-/// Fill `out` with current memory info. False on read/parse failure.
-pub fn snapshotMem(out: *MemInfo) bool {
-    const io = std.Io.Threaded.global_single_threaded.io();
-    var buf: [max_proc_size]u8 = undefined;
-    const src = readProc(io, "/proc/meminfo", &buf) orelse return false;
-    const m = parseMeminfo(src) orelse return false;
-    out.* = m;
     return true;
 }
 
@@ -164,14 +157,4 @@ test "parse meminfo with MemAvailable" {
     try testing.expectEqual(@as(u64, 8000000 * 1024), m.total_bytes);
     try testing.expectEqual(@as(u64, 4000000 * 1024), m.avail_bytes);
     try testing.expectApproxEqAbs(@as(f64, 0.5), m.used_percent, 1e-9);
-}
-
-test "parse meminfo falls back without MemAvailable" {
-    const m = parseMeminfo("MemTotal:        1000 kB\nMemFree:          200 kB\nBuffers:            50 kB\nCached:            250 kB\n").?;
-    // avail = 200+50+250 = 500 -> 0.5 used
-    try testing.expectApproxEqAbs(@as(f64, 0.5), m.used_percent, 1e-9);
-}
-
-test "parse meminfo rejects missing total" {
-    try testing.expect(parseMeminfo("MemFree: 100 kB\n") == null);
 }
