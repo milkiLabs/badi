@@ -94,11 +94,16 @@ mixin PopupSurfaceMixin<T extends StatefulWidget> on State<T> {
   final Map<String, bool> _hoveringPopup = {};
   final Map<String, Timer?> _hideTimers = {};
 
-  /// Click opens a popup; pointer tracking only dismisses it after the pointer
-  /// leaves both the trigger and popup.
+  /// Click toggles the popup: opens it if closed, closes it if open. Pointer
+  /// tracking still dismisses it after the pointer leaves both the trigger and
+  /// popup.
   void onTriggerTap(String key) {
     _hideTimers[key]?.cancel();
     _hideTimers[key] = null;
+    if (_popupControllers[key] != null) {
+      _hidePopup(key);
+      return;
+    }
     _hoveringTrigger[key] = true;
     _showPopup(key);
   }
