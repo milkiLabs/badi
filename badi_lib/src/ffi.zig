@@ -15,6 +15,7 @@
 const std = @import("std");
 const session = @import("session.zig");
 const sysmon = @import("sysmon.zig");
+const network = @import("network.zig");
 const desktop = @import("desktop.zig");
 
 const c_alloc = std.heap.c_allocator;
@@ -197,6 +198,12 @@ export fn badi_cpu_usage_between(prev: ?*const BadiCpuSnapshot, cur: ?*const Bad
 export fn badi_mem_snapshot(out: ?*BadiMemInfo) callconv(.c) c_int {
     const dst = out orelse return -1;
     return if (sysmon.snapshotMem(dst)) 0 else -1;
+}
+
+/// Current download rate in bytes per second, or -1 until two samples exist
+/// or when the default-route interface cannot be read.
+export fn badi_network_download_speed() callconv(.c) f64 {
+    return network.snapshotDownloadBytesPerSecond();
 }
 
 // ---------------------------------------------------------------- document files (simplified parser)

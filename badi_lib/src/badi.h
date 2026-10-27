@@ -125,6 +125,9 @@ double badi_cpu_usage_between(const BadiCpuSnapshot *prev,
 /* Fill `out` with current memory totals. 0 on success, -1 on failure. */
 int badi_mem_snapshot(BadiMemInfo *out);
 
+/* Current download rate in bytes per second, or -1 when unavailable. */
+double badi_network_download_speed(void);
+
 #ifdef __cplusplus
 }
 #endif

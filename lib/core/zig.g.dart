@@ -273,6 +273,16 @@ class BadiLib {
   late final _badi_mem_snapshot = _badi_mem_snapshotPtr
       .asFunction<int Function(ffi.Pointer<BadiMemInfo>)>();
 
+  double badi_network_download_speed() {
+    return _badi_network_download_speed();
+  }
+
+  late final _badi_network_download_speedPtr =
+      _lookup<ffi.NativeFunction<ffi.Double Function()>>(
+          'badi_network_download_speed');
+  late final _badi_network_download_speed =
+      _badi_network_download_speedPtr.asFunction<double Function()>();
+
   int badi_session_append(
     ffi.Pointer<BadiSession> session,
     ffi.Pointer<ffi.Pointer<ffi.Char>> lines,

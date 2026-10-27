@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../platform/network_speed.dart';
 import '../platform/sys_stats.dart';
 import 'app_theme.dart';
 import 'workspaces_indicator.dart';
@@ -86,6 +87,8 @@ class BarBody extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  const NetworkSpeedLabel(),
                   const SizedBox(width: 10),
                   MouseRegion(
                     onEnter: (_) => onBluetoothHover(true),
@@ -188,6 +191,42 @@ class _SysStatsTrayState extends State<SysStatsTray> {
       ],
     );
   }
+}
+
+/// Live download rate, sampled from the active default-route interface.
+class NetworkSpeedLabel extends StatefulWidget {
+  const NetworkSpeedLabel({super.key});
+
+  @override
+  State<NetworkSpeedLabel> createState() => _NetworkSpeedLabelState();
+}
+
+class _NetworkSpeedLabelState extends State<NetworkSpeedLabel> {
+  final _service = NetworkSpeedService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _service.addListener(_onChange);
+    _service.start();
+  }
+
+  void _onChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _service.removeListener(_onChange);
+    _service.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(
+        formatNetworkSpeed(_service.bytesPerSecond),
+        style: AppTextStyles.rowSubtitle,
+      );
 }
 
 class _StatChip extends StatelessWidget {
