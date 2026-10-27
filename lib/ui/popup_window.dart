@@ -52,32 +52,35 @@ class PopupWindow extends StatelessWidget {
     super.key,
     required this.config,
     required this.child,
-    required this.onHoverChanged,
+    this.onHoverChanged,
   });
 
   final PopupWindowConfig config;
   final Widget child;
-  final ValueChanged<bool> onHoverChanged;
+  final ValueChanged<bool>? onHoverChanged;
 
   @override
   Widget build(BuildContext context) {
+    final surface = Material(
+      color: AppColors.background,
+      child: Container(
+        width: config.width.toDouble(),
+        height: config.height.toDouble(),
+        decoration: BoxDecoration(
+          color: AppColors.row,
+          border: Border.all(color: AppColors.hint, width: 1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: child,
+      ),
+    );
+    final onHoverChanged = this.onHoverChanged;
+    if (onHoverChanged == null) return surface;
     return MouseRegion(
       onEnter: (_) => onHoverChanged(true),
       onExit: (_) => onHoverChanged(false),
-      child: Material(
-        color: AppColors.background,
-        child: Container(
-          width: config.width.toDouble(),
-          height: config.height.toDouble(),
-          decoration: BoxDecoration(
-            color: AppColors.row,
-            border: Border.all(color: AppColors.hint, width: 1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.all(12),
-          child: child,
-        ),
-      ),
+      child: surface,
     );
   }
 }
@@ -91,13 +94,21 @@ mixin PopupSurfaceMixin<T extends StatefulWidget> on State<T> {
   final Map<String, bool> _hoveringPopup = {};
   final Map<String, Timer?> _hideTimers = {};
 
-  /// Call when the trigger (e.g. bar icon) is hovered/unhovered.
-  void onTriggerHover(String key, bool hovering) {
+  /// Click opens a popup; pointer tracking only dismisses it after the pointer
+  /// leaves both the trigger and popup.
+  void onTriggerTap(String key) {
+    _hideTimers[key]?.cancel();
+    _hideTimers[key] = null;
+    _hoveringTrigger[key] = true;
+    _showPopup(key);
+  }
+
+  /// Track pointer movement for click-opened popups without opening them.
+  void onTriggerPointer(String key, bool hovering) {
     _hoveringTrigger[key] = hovering;
     if (hovering) {
       _hideTimers[key]?.cancel();
       _hideTimers[key] = null;
-      _showPopup(key);
     } else {
       _scheduleHide(key);
     }
@@ -149,7 +160,12 @@ mixin PopupSurfaceMixin<T extends StatefulWidget> on State<T> {
   }
 
   /// Build the [PopupWindow] for [key], or null if not open.
-  Widget? buildPopupView(String key, PopupWindowConfig config, Widget child) {
+  Widget? buildPopupView(
+    String key,
+    PopupWindowConfig config,
+    Widget child, {
+    bool trackHover = true,
+  }) {
     final controller = _popupControllers[key];
     if (controller == null) return null;
     return LayerShellWindow(
@@ -163,7 +179,8 @@ mixin PopupSurfaceMixin<T extends StatefulWidget> on State<T> {
         home: PopupWindow(
           config: config,
           child: child,
-          onHoverChanged: (hovering) => onPopupHover(key, hovering),
+          onHoverChanged:
+              trackHover ? (hovering) => onPopupHover(key, hovering) : null,
         ),
       ),
     );

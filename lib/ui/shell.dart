@@ -189,8 +189,11 @@ class _BadiShellState extends State<BadiShell>
   Widget build(BuildContext context) {
     final launcher = _launcher;
     final actions = widget.shell.currentActions;
-    final wifiPopup =
-        buildPopupView('wifi', wifiPopupConfig, const WifiPopupContent());
+    final wifiPopup = buildPopupView(
+      'wifi',
+      wifiPopupConfig,
+      const WifiPopupContent(),
+    );
     final bluetoothPopup = buildPopupView(
       'bluetooth',
       bluetoothPopupConfig,
@@ -220,12 +223,18 @@ class _BadiShellState extends State<BadiShell>
           child: _surface(
             home: BarBody(
               onOpenLauncher: _openFromBar,
-              onWifiHover: (hovering) => onTriggerHover('wifi', hovering),
+              onWifiTap: () => onTriggerTap('wifi'),
+              onWifiHover: (hovering) => onTriggerPointer('wifi', hovering),
+              onBluetoothTap: () => onTriggerTap('bluetooth'),
               onBluetoothHover: (hovering) =>
-                  onTriggerHover('bluetooth', hovering),
-              onSysmonHover: (hovering) => onTriggerHover('sysmon', hovering),
-              onClockHover: (hovering) => onTriggerHover('clock', hovering),
-              onPowerHover: (hovering) => onTriggerHover('power', hovering),
+                  onTriggerPointer('bluetooth', hovering),
+              onSysmonTap: () => onTriggerTap('sysmon'),
+              onSysmonPointer: (hovering) =>
+                  onTriggerPointer('sysmon', hovering),
+              onClockTap: () => onTriggerTap('clock'),
+              onClockHover: (hovering) => onTriggerPointer('clock', hovering),
+              onPowerTap: () => onTriggerTap('power'),
+              onPowerHover: (hovering) => onTriggerPointer('power', hovering),
             ),
           ),
         ),

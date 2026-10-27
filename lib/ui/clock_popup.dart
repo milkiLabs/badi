@@ -14,13 +14,13 @@ const PopupWindowConfig clockPopupConfig = PopupWindowConfig(
   anchorEdges: [LayerShellEdge.top],
 );
 
-/// Prayer timings popup shown when hovering the bar clock. The settings
-/// icon pushes [PrayerSettingsPage] onto the popup's own navigator.
+/// Prayer timings popup opened by clicking the bar clock. The settings icon
+/// pushes [PrayerSettingsPage] onto the popup's own navigator.
 class ClockPopupContent extends StatelessWidget {
   const ClockPopupContent({super.key, this.onHoverChanged});
 
-  /// Forwards hover from pushed routes (which sit outside the popup's
-  /// MouseRegion) so the hide debounce does not close the popup.
+  /// Forwards hover from pushed routes so pointer movement keeps the popup
+  /// open while settings are displayed.
   final ValueChanged<bool>? onHoverChanged;
 
   void _openSettings(BuildContext context) {

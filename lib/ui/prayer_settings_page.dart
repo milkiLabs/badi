@@ -7,7 +7,6 @@ import 'app_theme.dart';
 class PrayerSettingsPage extends StatelessWidget {
   const PrayerSettingsPage({super.key, this.onHoverChanged});
 
-  /// Keeps the popup's hover-debounce alive while this page is on top.
   final ValueChanged<bool>? onHoverChanged;
 
   @override

@@ -5,22 +5,33 @@ import 'package:material_ui/material_ui.dart';
 import '../platform/sys_stats.dart';
 import 'app_theme.dart';
 import 'workspaces_indicator.dart';
+
 class BarBody extends StatelessWidget {
   const BarBody({
     super.key,
     required this.onOpenLauncher,
+    required this.onWifiTap,
     required this.onWifiHover,
+    required this.onBluetoothTap,
     required this.onBluetoothHover,
-    required this.onSysmonHover,
+    required this.onSysmonTap,
+    required this.onSysmonPointer,
+    required this.onClockTap,
     required this.onClockHover,
+    required this.onPowerTap,
     required this.onPowerHover,
   });
 
   final VoidCallback onOpenLauncher;
+  final VoidCallback onWifiTap;
   final ValueChanged<bool> onWifiHover;
+  final VoidCallback onBluetoothTap;
   final ValueChanged<bool> onBluetoothHover;
-  final ValueChanged<bool> onSysmonHover;
+  final VoidCallback onSysmonTap;
+  final ValueChanged<bool> onSysmonPointer;
+  final VoidCallback onClockTap;
   final ValueChanged<bool> onClockHover;
+  final VoidCallback onPowerTap;
   final ValueChanged<bool> onPowerHover;
 
   @override
@@ -53,42 +64,54 @@ class BarBody extends StatelessWidget {
                   const WorkspacesIndicator(),
                   const Spacer(),
                   MouseRegion(
-                    onEnter: (_) => onSysmonHover(true),
-                    onExit: (_) => onSysmonHover(false),
-                    cursor: SystemMouseCursors.basic,
-                    child: const SysStatsTray(),
+                    onEnter: (_) => onSysmonPointer(true),
+                    onExit: (_) => onSysmonPointer(false),
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onSysmonTap,
+                      child: const SysStatsTray(),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   MouseRegion(
                     onEnter: (_) => onWifiHover(true),
                     onExit: (_) => onWifiHover(false),
-                    cursor: SystemMouseCursors.basic,
-                    child: const Icon(
-                      Icons.wifi,
-                      color: AppColors.body,
-                      size: 18,
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onWifiTap,
+                      child: const Icon(
+                        Icons.wifi,
+                        color: AppColors.body,
+                        size: 18,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   MouseRegion(
                     onEnter: (_) => onBluetoothHover(true),
                     onExit: (_) => onBluetoothHover(false),
-                    cursor: SystemMouseCursors.basic,
-                    child: const Icon(
-                      Icons.bluetooth,
-                      color: AppColors.body,
-                      size: 18,
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onBluetoothTap,
+                      child: const Icon(
+                        Icons.bluetooth,
+                        color: AppColors.body,
+                        size: 18,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   MouseRegion(
                     onEnter: (_) => onPowerHover(true),
                     onExit: (_) => onPowerHover(false),
-                    cursor: SystemMouseCursors.basic,
-                    child: const Icon(
-                      Icons.power_settings_new,
-                      color: AppColors.body,
-                      size: 18,
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onPowerTap,
+                      child: const Icon(
+                        Icons.power_settings_new,
+                        color: AppColors.body,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ],
@@ -99,8 +122,11 @@ class BarBody extends StatelessWidget {
               child: MouseRegion(
                 onEnter: (_) => onClockHover(true),
                 onExit: (_) => onClockHover(false),
-                cursor: SystemMouseCursors.basic,
-                child: const ClockLabel(),
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: onClockTap,
+                  child: const ClockLabel(),
+                ),
               ),
             ),
           ],
@@ -181,7 +207,7 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = alert ? AppColors.error : AppColors.body;
     // No Tooltip here: the bar surface is 32px tall and clips anything
-    // overflowing it. Details live in the sysmon hover popup, which is
+    // overflowing it. Details live in the sysmon popup, which is
     // its own layer-shell surface (see sysmon_popup.dart).
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -217,7 +243,8 @@ class _ClockLabelState extends State<ClockLabel> {
 
   void _schedule() {
     final now = DateTime.now();
-    final next = DateTime(now.year, now.month, now.day, now.hour, now.minute + 1);
+    final next =
+        DateTime(now.year, now.month, now.day, now.hour, now.minute + 1);
     _timer = Timer(
       next.difference(now) + const Duration(milliseconds: 300),
       () {
