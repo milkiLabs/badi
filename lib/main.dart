@@ -39,7 +39,7 @@ Future<void> main(List<String> args) async {
     stdout.writeln('  --launcher open the launcher via the running daemon,');
     stdout.writeln('             or one-shot when no daemon is listening.');
     stdout.writeln(
-        '  --pre-display-cmd COMMAND transform each piped line via stdin for display');
+        '  --pre-display-cmd COMMAND transform piped rows for display');
     await stdout.flush();
     exit(0);
   }

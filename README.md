@@ -10,14 +10,14 @@ badi           # keybinding: opens the launcher via the running daemon
 find / | badi  # dmenu mode: pick a piped line, printed to stdout
 ```
 
-Run a command on each piped item to create its launcher preview. The command
-receives the item on stdin; selecting it still prints the original line:
+Run one command over the piped stream to create launcher previews. It receives
+all rows on stdin; selecting a preview still prints its original input row:
 
 ```sh
 cat /etc/passwd | badi --launcher --pre-display-cmd='cut -d: -f1'
 ```
 
-If the command exits unsuccessfully, the original line is used as the preview.
+The command must emit exactly one output line per input line, in the same order.
 
 No daemon listening? Bare `badi` falls back to a one-shot window, so piping works without the shell. `Esc` closes the launcher; there is intentionally no toggle command.
 
