@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 import 'zig.g.dart';
+import 'piped_row.dart';
 
 /// One shown row: an app or one piped line. [id] is the session-local row
 /// to pass back to [Session.target]/[Session.result].
@@ -86,8 +87,7 @@ class Session implements Finalizable {
   factory Session.lines(List<String> lines, {required BadiLib lib}) {
     return using((arena) {
       final handle = lines.isEmpty
-          ? lib.badi_session_lines(
-              nullptr.cast(), 0)
+          ? lib.badi_session_lines(nullptr.cast(), 0)
           : lib.badi_session_lines(_toNativeLines(lines, arena), lines.length);
       if (handle == nullptr) {
         throw StateError('badi_session_lines returned NULL (OOM)');
@@ -145,11 +145,11 @@ class Session implements Finalizable {
   /// Copy out shown row `i`.
   SessionRow rowAt(int i) {
     _checkOpen();
-    final title = _string(_lib.badi_session_title(_handle, i));
-    if (title == null) throw StateError('no row at index $i');
+    final encodedTitle = _string(_lib.badi_session_title(_handle, i));
+    if (encodedTitle == null) throw StateError('no row at index $i');
     return SessionRow(
       id: i,
-      title: title,
+      title: pipedRowTitle(encodedTitle),
       subtitle: _string(_lib.badi_session_subtitle(_handle, i)),
     );
   }
@@ -181,7 +181,7 @@ class Session implements Finalizable {
     _checkOpen();
     final out = _string(_lib.badi_session_result(_handle, i));
     if (out == null) throw StateError('no result at index $i');
-    return out;
+    return pipedRowResult(out);
   }
 
   /// Decode one owned native string, freeing it. Null stays null.

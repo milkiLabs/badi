@@ -19,30 +19,41 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:layer_shell/layer_shell.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
 
+import 'cli/launcher_options.dart';
 import 'platform/ipc.dart';
+import 'platform/pre_display_command.dart';
+import 'prayers/shared_pref.dart';
 import 'shell/shell_controller.dart';
 import 'ui/shell.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
-import 'prayers/shared_pref.dart';
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help') || args.contains('-h')) {
-    stdout.writeln('Usage: badi [--launcher]');
+    stdout.writeln('Usage: badi [--launcher] [--pre-display-cmd COMMAND]');
     stdout.writeln(
         '  (no args) run the long-lived shell (top bar + launcher server)');
     stdout.writeln('  --launcher open the launcher via the running daemon,');
     stdout.writeln('             or one-shot when no daemon is listening.');
+    stdout.writeln(
+        '  --pre-display-cmd COMMAND transform each piped line via stdin for display');
     await stdout.flush();
     exit(0);
   }
 
   // Legacy alias kept for compatibility: `--shell` used to request the bar.
   if (args.contains('--launcher')) {
-    await _openLauncher();
+    late final String? displayCommand;
+    try {
+      displayCommand = LauncherOptions.parse(args);
+    } on FormatException catch (error) {
+      stderr.writeln('badi: ${error.message}');
+      exit(2);
+    }
+    await _openLauncher(displayCommand: displayCommand);
     return;
   }
 
@@ -59,8 +70,11 @@ Future<void> main(List<String> args) async {
 /// Client path: ask a running daemon to open the launcher, or fall back to
 /// a one-shot window when none is listening. Pure dart:io, no Flutter init,
 /// so keypress clients stay fast and piping works headless.
-Future<void> _openLauncher() async {
-  final piped = _readPipedLines();
+Future<void> _openLauncher({required String? displayCommand}) async {
+  var piped = _readPipedLines();
+  if (piped != null && displayCommand != null) {
+    piped = applyPreDisplayCommand(piped, displayCommand);
+  }
   final outcome = await tryOpenViaDaemon(
     socketPath: ipcSocketPath(),
     piped: piped,
