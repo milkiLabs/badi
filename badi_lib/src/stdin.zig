@@ -64,7 +64,10 @@ fn readThread(state: *State) void {
             break;
         }
         if (ready == 0) {
-            flush(state, 0);
+            if (!flush(state, 0)) {
+                error_code = -1;
+                break;
+            }
             continue;
         }
 
@@ -109,7 +112,7 @@ fn readThread(state: *State) void {
     if (pending_cr or state.line.items.len > 0) appendLine(state) catch {
         error_code = -1;
     };
-    flush(state, 0);
+    if (!flush(state, 0)) error_code = -1;
     state.callback(state.context, "", 0, 0, error_code);
     state.bytes.deinit(allocator);
     state.line.deinit(allocator);
@@ -127,13 +130,14 @@ fn appendLine(state: *State) !void {
 
 fn appendLineAndFlush(state: *State) !void {
     try appendLine(state);
-    if (state.lines >= batch_limit) flush(state, 0);
+    if (state.lines >= batch_limit and !flush(state, 0)) return error.OutOfMemory;
 }
 
-fn flush(state: *State, event: c_int) void {
-    if (state.lines == 0) return;
-    const owned = state.bytes.toOwnedSliceSentinel(allocator, 0) catch return;
+fn flush(state: *State, event: c_int) bool {
+    if (state.lines == 0) return true;
+    const owned = state.bytes.toOwnedSliceSentinel(allocator, 0) catch return false;
     state.callback(state.context, owned.ptr, owned.len, state.lines, event);
     state.bytes = .empty;
     state.lines = 0;
+    return true;
 }

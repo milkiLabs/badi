@@ -61,7 +61,8 @@ size_t badi_session_count(const BadiSession *session);
 /*
  * Each getter returns an owned NUL-terminated copy, or NULL when the
  * handle/row is bad, the value is missing, or on OOM. subtitle is
- * always NULL in lines mode.
+ * always NULL in lines mode. Long piped rows have a shortened title for
+ * display; badi_session_result still returns the complete original line.
  */
 char *badi_session_title(const BadiSession *session, size_t index);
 char *badi_session_subtitle(const BadiSession *session, size_t index);
@@ -74,6 +75,11 @@ char *badi_session_subtitle(const BadiSession *session, size_t index);
  * Empty appends are a no-op.
  */
 int badi_session_append(BadiSession *session, const char *const *lines, size_t n);
+
+/* Append newline-delimited UTF-8 bytes directly (blank rows are ignored). */
+int badi_session_append_utf8_lines(BadiSession *session,
+                                   const unsigned char *bytes,
+                                   size_t byte_len);
 
 /* Launch argv length for shown row `index`. 0 when bad or not launchable. */
 size_t badi_session_arg_count(const BadiSession *session, size_t index);

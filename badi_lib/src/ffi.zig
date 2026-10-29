@@ -161,7 +161,7 @@ export fn badi_session_cwd(handle: ?*const BadiSession, index: usize) callconv(.
 export fn badi_session_result(handle: ?*const BadiSession, index: usize) callconv(.c) ?[*:0]u8 {
     const e = rowOf(handle, index) orelse return null;
     if (e.app != null) return null; // apps mode has no result string
-    return dupe(e.title);
+    return dupe(e.result);
 }
 
 /// Append piped lines to a lines-mode session (copied). Newcomers matching
@@ -179,6 +179,20 @@ export fn badi_session_append(handle: ?*BadiSession, lines: ?[*]const [*:0]const
             s.appendLines(buf) catch return -1;
         }
     }
+    return 0;
+}
+
+/// Append newline-delimited UTF-8 bytes directly, avoiding per-line decode
+/// and re-encode work in the frontend. Blank rows are ignored.
+export fn badi_session_append_utf8_lines(
+    handle: ?*BadiSession,
+    bytes: ?[*]const u8,
+    byte_len: usize,
+) callconv(.c) c_int {
+    const s = sessionOf(handle) orelse return -1;
+    if (byte_len == 0) return 0;
+    const input = bytes orelse return -1;
+    s.appendUtf8Lines(input[0..byte_len]) catch return -1;
     return 0;
 }
 

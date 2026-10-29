@@ -8,14 +8,19 @@ const Allocator = std.mem.Allocator;
 const apps = @import("apps.zig");
 const text = @import("text.zig");
 
+const encoded_preview_prefix = "\xF4\x8F\xBF\xBFbadi-piped-row:";
+
 /// One visible row: an app or one input line. Strings borrow from the
 /// session arena; `app` locates the launch target in apps mode.
 pub const Entry = struct {
     title: []const u8,
     subtitle: ?[]const u8,
     hay: []const u8,
+    result: []const u8,
     app: ?usize,
 };
+
+const max_line_preview_bytes = 512;
 
 pub const Session = struct {
     gpa: Allocator,
@@ -23,13 +28,14 @@ pub const Session = struct {
     apps: []const App, // full list in apps mode; empty in lines mode
     entries: std.ArrayList(Entry), // arena-backed, grows with piped input
     shown: std.ArrayList(usize), // gpa-owned indices into entries, reused per query
-    query_lower: ?[]u8, // active filter, arena-owned; null shows all
+    query_lower: ?[]u8, // active filter, gpa-owned and replaced per query
     lines_mode: bool, // appendLines only makes sense for piped input
 
     pub const App = apps.App;
 
     pub fn deinit(self: *Session) void {
         self.shown.deinit(self.gpa);
+        if (self.query_lower) |query| self.gpa.free(query);
         self.list.deinit();
     }
 
@@ -45,6 +51,7 @@ pub const Session = struct {
                 .title = a.name,
                 .subtitle = a.comment,
                 .hay = a.hay,
+                .result = a.name,
                 .app = i,
             });
         }
@@ -90,31 +97,62 @@ pub const Session = struct {
     /// after calling this.
     pub fn setQuery(self: *Session, query: ?[]const u8) Allocator.Error!void {
         const q = std.mem.trim(u8, query orelse "", " \t");
-        const arena = self.list.arena.allocator();
-        self.query_lower = if (q.len == 0) null else try text.lowerDup(arena, q);
-        self.shown.clearRetainingCapacity();
-        try self.appendMatches(0);
+        const next_query = if (q.len == 0) null else try text.lowerDup(self.gpa, q);
+        errdefer if (next_query) |value| self.gpa.free(value);
+
+        var next_shown: std.ArrayList(usize) = .empty;
+        errdefer next_shown.deinit(self.gpa);
+        try self.collectMatches(&next_shown, next_query);
+
+        var old_shown = self.shown;
+        const old_query = self.query_lower;
+        self.shown = next_shown;
+        self.query_lower = next_query;
+        old_shown.deinit(self.gpa);
+        if (old_query) |value| self.gpa.free(value);
     }
 
     /// Append piped lines (lines mode only); newcomers matching the active
     /// query join the view in arrival order.
     pub fn appendLines(self: *Session, lines: []const []const u8) AppendError!void {
         if (!self.lines_mode) return error.WrongMode;
+        if (lines.len == 0) return;
+        try self.shown.ensureUnusedCapacity(self.gpa, lines.len);
         const arena = self.list.arena.allocator();
         const from = self.entries.items.len;
+        errdefer self.entries.items.len = from;
         try dupeEntries(&self.entries, arena, lines);
-        try self.appendMatches(from);
+        for (self.entries.items[from..], from..) |entry, i| {
+            if (self.query_lower) |query| {
+                if (std.mem.indexOf(u8, entry.hay, query) == null) continue;
+            }
+            self.shown.appendAssumeCapacity(i);
+        }
     }
 
-    /// Push indices of entries[from..] matching the stored query into the
-    /// view. Blank query matches all.
-    fn appendMatches(self: *Session, from: usize) Allocator.Error!void {
-        if (self.query_lower) |ql| {
-            for (self.entries.items[from..], from..) |e, i| {
-                if (std.mem.indexOf(u8, e.hay, ql) != null) try self.shown.append(self.gpa, i);
+    /// Append newline-delimited UTF-8 rows without decoding them in the
+    /// frontend. The bytes are borrowed only for this call.
+    pub fn appendUtf8Lines(self: *Session, bytes: []const u8) AppendError!void {
+        if (!self.lines_mode) return error.WrongMode;
+        var lines: std.ArrayList([]const u8) = .empty;
+        defer lines.deinit(self.gpa);
+        var split = std.mem.splitScalar(u8, bytes, '\n');
+        while (split.next()) |line| {
+            const clean = std.mem.trimEnd(u8, line, "\r");
+            if (clean.len != 0) try lines.append(self.gpa, clean);
+        }
+        try self.appendLines(lines.items);
+    }
+
+    /// Build a complete filtered view separately so allocation failure
+    /// leaves the previous query and results intact.
+    fn collectMatches(self: *const Session, shown: *std.ArrayList(usize), query: ?[]const u8) Allocator.Error!void {
+        if (query) |needle| {
+            for (self.entries.items, 0..) |entry, i| {
+                if (std.mem.indexOf(u8, entry.hay, needle) != null) try shown.append(self.gpa, i);
             }
         } else {
-            for (from..self.entries.items.len) |i| try self.shown.append(self.gpa, i);
+            for (0..self.entries.items.len) |i| try shown.append(self.gpa, i);
         }
     }
     /// Shown row count.
@@ -148,14 +186,43 @@ fn showAll(shown: *std.ArrayList(usize), gpa: Allocator, n: usize) Allocator.Err
 /// Copy `lines` into arena-owned entries (title + lowercase blob each).
 fn dupeEntries(entries: *std.ArrayList(Entry), arena: Allocator, lines: []const []const u8) Allocator.Error!void {
     for (lines) |line| {
-        const title = try arena.dupe(u8, line);
+        const full = try arena.dupe(u8, line);
         try entries.append(arena, .{
-            .title = title,
+            .title = try linePreview(arena, full),
             .subtitle = null,
-            .hay = try text.lowerDup(arena, title),
+            .hay = try text.lowerDup(arena, full),
+            .result = full,
             .app = null,
         });
     }
+}
+
+fn linePreview(arena: Allocator, line: []const u8) Allocator.Error![]const u8 {
+    // Display-command rows carry a Dart-owned display/result envelope. Keep
+    // it whole so the frontend can decode the short display title and the
+    // original selected result.
+    if (std.mem.startsWith(u8, line, encoded_preview_prefix)) return line;
+    var end: usize = 0;
+    while (end < line.len and end < max_line_preview_bytes) {
+        const first = line[end];
+        const width: usize = if (first < 0x80)
+            1
+        else if (first & 0xe0 == 0xc0)
+            2
+        else if (first & 0xf0 == 0xe0)
+            3
+        else if (first & 0xf8 == 0xf0)
+            4
+        else
+            1;
+        if (end + width > max_line_preview_bytes or end + width > line.len) break;
+        end += width;
+    }
+    if (end == line.len) return line;
+    const preview = try arena.alloc(u8, end + 3);
+    @memcpy(preview[0..end], line[0..end]);
+    @memcpy(preview[end..], "...");
+    return preview;
 }
 
 // ---------------------------------------------------------------- tests
