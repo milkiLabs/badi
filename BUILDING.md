@@ -72,8 +72,9 @@ bind = SUPER, SPACE, exec, badi
 
 State lives in `lib/shell/shell_controller.dart` (open/close/mode, no
 sockets, unit-tested); completion in `lib/shell/shell_actions.dart`
-(spawn-and-hide, answer-the-client). The Zig core is untouched: filtering
-and row data stay UI-agnostic behind `Session`.
+(spawn-and-hide, answer-the-client). Zig reads piped stdin and batches lines;
+Flutter keeps search and session interaction, with row filtering and data in
+the UI-agnostic Zig core.
 
 ## Daily builds
 

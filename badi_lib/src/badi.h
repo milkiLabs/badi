@@ -20,6 +20,19 @@ typedef struct BadiDesktopList BadiDesktopList;
 void badi_free_string(char *s);
 
 /*
+ * Asynchronous stdin line batches for frontends. Start once per process.
+ * The callback is invoked on a native worker thread. Copy the batch before
+ * calling badi_stdin_batch_free; its pointer remains valid until then.
+ * Batch bytes are newline-delimited. event is 0 for data, 1 for EOF, -1 for
+ * a read error. EOF/error is delivered exactly once after any final batch.
+ */
+typedef void (*BadiStdinCallback)(void *context, const char *batch,
+                                  size_t byte_len, size_t line_count,
+                                  int event);
+int badi_stdin_start(BadiStdinCallback callback, void *context);
+void badi_stdin_batch_free(const char *batch);
+
+/*
  * Open an apps-mode session: scan system + user applications dirs,
  * sorted by name. locale picks localized Name/Icon/Comment, may be
  * NULL for unlocalized. Returns NULL only on OOM.

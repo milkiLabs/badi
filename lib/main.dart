@@ -16,7 +16,6 @@
 // GNOME-Wayland or X11. System dependency: libgtk-layer-shell-dev
 // (linked via linux/CMakeLists.txt + linux/runner/CMakeLists.txt).
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +26,7 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'cli/launcher_options.dart';
 import 'platform/ipc.dart';
 import 'platform/pre_display_command.dart';
+import 'platform/zig_stdin.dart';
 import 'prayers/shared_pref.dart';
 import 'shell/shell_controller.dart';
 import 'ui/shell.dart';
@@ -71,9 +71,14 @@ Future<void> main(List<String> args) async {
 /// a one-shot window when none is listening. Pure dart:io, no Flutter init,
 /// so keypress clients stay fast and piping works headless.
 Future<void> _openLauncher({required String? displayCommand}) async {
-  var piped = _readPipedLines();
+  Stream<dynamic>? piped = _readPipedLines();
   if (piped != null && displayCommand != null) {
-    piped = applyPreDisplayCommand(piped, displayCommand);
+    piped = applyPreDisplayCommand(
+      piped.expand<String>(
+        (event) => event is String ? [event] : event as List<String>,
+      ),
+      displayCommand,
+    );
   }
   final outcome = await tryOpenViaDaemon(
     socketPath: ipcSocketPath(),
@@ -112,10 +117,7 @@ Future<void> _runShell() async {
 }
 
 /// Piped input lines, or null when running attached to a terminal.
-Stream<String>? _readPipedLines() {
+Stream<dynamic>? _readPipedLines() {
   if (stdin.hasTerminal) return null;
-  return stdin
-      .transform(const Utf8Decoder(allowMalformed: true))
-      .transform(const LineSplitter())
-      .where((l) => l.isNotEmpty);
+  return zigStdinBatches;
 }

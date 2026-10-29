@@ -40,6 +40,9 @@ String encodeOpenLines() =>
 String encodeLine(String line) =>
     jsonEncode({'v': ipcVersion, 'type': 'line', 'data': line});
 
+String encodeBatch(List<String> lines) =>
+    jsonEncode({'v': ipcVersion, 'type': 'batch', 'data': lines});
+
 String encodeEof() => jsonEncode({'v': ipcVersion, 'type': 'eof'});
 
 String encodeAck() => jsonEncode({'v': ipcVersion, 'type': 'ack'});
@@ -47,8 +50,7 @@ String encodeAck() => jsonEncode({'v': ipcVersion, 'type': 'ack'});
 String encodeResult(String line) =>
     jsonEncode({'v': ipcVersion, 'type': 'result', 'data': line});
 
-String encodeCancelled() =>
-    jsonEncode({'v': ipcVersion, 'type': 'cancelled'});
+String encodeCancelled() => jsonEncode({'v': ipcVersion, 'type': 'cancelled'});
 
 String encodeError(String message) =>
     jsonEncode({'v': ipcVersion, 'type': 'error', 'message': message});
@@ -68,6 +70,11 @@ class OpenRequest extends IpcMessage {
 class InputLine extends IpcMessage {
   const InputLine(this.data);
   final String data;
+}
+
+class InputBatch extends IpcMessage {
+  const InputBatch(this.lines);
+  final List<String> lines;
 }
 
 class InputEof extends IpcMessage {
@@ -111,6 +118,12 @@ IpcMessage decodeIpcMessage(Object? json) {
       final data = json['data'];
       if (data is! String) throw FormatException('bad line data: $data');
       return InputLine(data);
+    case 'batch':
+      final data = json['data'];
+      if (data is! List || data.any((line) => line is! String)) {
+        throw FormatException('bad batch data: $data');
+      }
+      return InputBatch(List<String>.unmodifiable(data.cast<String>()));
     case 'eof':
       return const InputEof();
     case 'ack':
@@ -161,7 +174,7 @@ class ClientOutcome {
 /// Flutter, so keypress clients stay fast.
 Future<ClientOutcome?> tryOpenViaDaemon({
   required String socketPath,
-  required Stream<String>? piped,
+  required Stream<dynamic>? piped,
   Duration connectTimeout = const Duration(seconds: 2),
 }) async {
   late final Socket sock;
@@ -201,8 +214,7 @@ Future<ClientOutcome> _appsExchange(Socket sock) async {
     }
     return switch (decodeIpcMessage(jsonDecode(it.current))) {
       Ack() => const ClientOutcome(exitCode: 0),
-      RemoteError(:final message) =>
-        ClientOutcome(exitCode: 1, error: message),
+      RemoteError(:final message) => ClientOutcome(exitCode: 1, error: message),
       _ => const ClientOutcome(exitCode: 1, error: 'unexpected daemon reply'),
     };
   } finally {
@@ -214,7 +226,7 @@ Future<ClientOutcome> _appsExchange(Socket sock) async {
 /// The pick wait is unbounded: the user may take as long as they like.
 Future<ClientOutcome> _linesExchange(
   Socket sock,
-  Stream<String> piped,
+  Stream<dynamic> piped,
 ) async {
   sock.writeln(encodeOpenLines());
   await sock.flush();
@@ -241,11 +253,9 @@ Future<ClientOutcome> _linesExchange(
       );
     }
     return switch (decodeIpcMessage(jsonDecode(it.current))) {
-      PickResult(:final data) =>
-        ClientOutcome(exitCode: 0, resultLine: data),
+      PickResult(:final data) => ClientOutcome(exitCode: 0, resultLine: data),
       PickCancelled() => const ClientOutcome(exitCode: 1),
-      RemoteError(:final message) =>
-        ClientOutcome(exitCode: 1, error: message),
+      RemoteError(:final message) => ClientOutcome(exitCode: 1, error: message),
       _ => const ClientOutcome(exitCode: 1, error: 'unexpected daemon reply'),
     };
   } finally {
@@ -260,10 +270,14 @@ Future<ClientOutcome> _linesExchange(
 
 /// Pumps stdin lines to the daemon, then an `eof`. Ends early (via a write
 /// error) when the daemon answers and closes its side first.
-Future<void> _forwardInput(Socket sock, Stream<String> piped) async {
+Future<void> _forwardInput(Socket sock, Stream<dynamic> piped) async {
   try {
-    await for (final line in piped) {
-      sock.writeln(encodeLine(line));
+    await for (final event in piped) {
+      if (event is String) {
+        sock.writeln(encodeLine(event));
+      } else {
+        sock.writeln(encodeBatch(event as List<String>));
+      }
       await sock.flush();
     }
     sock.writeln(encodeEof());
@@ -387,6 +401,8 @@ Future<void> _handleConnection(Socket client, ShellController shell) async {
         switch (message) {
           case InputLine(:final data):
             shell.appendLine(data);
+          case InputBatch(:final lines):
+            shell.appendLines(lines);
           case InputEof():
             sawEof = true;
           case _:

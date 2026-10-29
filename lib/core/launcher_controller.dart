@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'actions.dart';
-import 'batch.dart';
 import 'session.dart';
 
 /// Non-UI owner of picker state: session lifecycle, piped-stdin streaming,
@@ -33,7 +32,7 @@ class LauncherController extends ChangeNotifier {
   final LauncherActions actions;
 
   /// Piped input lines; null selects the app launcher.
-  final Stream<String>? piped;
+  final Stream<dynamic>? piped;
 
   final Session Function() _openApps;
   final Session Function(String first) _openLines;
@@ -51,8 +50,7 @@ class LauncherController extends ChangeNotifier {
   bool _pipeMode = false;
   bool _streamDone = false;
   Timer? _grace;
-  StreamSubscription<String>? _sub;
-  Batcher<String>? _batcher;
+  StreamSubscription<dynamic>? _sub;
 
   /// Last query text, re-applied when a slow pipe flips late (after the
   /// user already typed while the apps fallback was showing).
@@ -85,7 +83,7 @@ class LauncherController extends ChangeNotifier {
     // supervised stdin (which never EOFs) without stalling real input.
     _grace = Timer(const Duration(milliseconds: 200), _onGraceTimeout);
     _sub = piped!.listen(
-      _onLine,
+      _onInput,
       onError: _onStreamError,
       onDone: () => _onStreamDone(),
     );
@@ -99,7 +97,6 @@ class LauncherController extends ChangeNotifier {
     _sub = null;
     _grace?.cancel();
     _grace = null;
-    _batcher = null; // drop leftovers: flushing here could notify mid-detach
     _session?.close();
     _session = null;
   }
@@ -165,15 +162,18 @@ class LauncherController extends ChangeNotifier {
   /// User aborted (Escape).
   void cancel() => actions.cancel(pipeMode: _pipeMode);
 
-  /// One input line arrived. The first line decides pipe mode; the rest
-  /// stream through the batcher. Also fires for slow pipes after the apps
-  /// fallback already painted (late flip, same path).
-  void _onLine(String line) {
-    if (_pipeMode) {
-      _batcher!.add(line);
+  /// Zig supplies lists already batched. Individual strings remain accepted
+  /// for line-at-a-time IPC clients.
+  void _onInput(dynamic event) {
+    final lines = event is String ? <String>[event] : event as List<String>;
+    if (lines.isEmpty) return;
+    if (!_pipeMode) {
+      _enterPipe(lines.first);
+      if (!_pipeMode) return;
+      if (lines.length > 1) _onBatch(lines.sublist(1));
       return;
     }
-    _enterPipe(line);
+    _onBatch(lines);
   }
 
   /// Open the picker on the first piped line. Replaces the apps session on
@@ -186,11 +186,6 @@ class LauncherController extends ChangeNotifier {
       final s = _openLines(first);
       _session?.close();
       _session = s;
-      _batcher = Batcher<String>(
-        size: 500,
-        idle: const Duration(milliseconds: 100),
-        onBatch: _onBatch,
-      );
       final q = _lastQuery;
       if (q.isNotEmpty) s.setQuery(q);
       _count = s.length;
@@ -201,7 +196,6 @@ class LauncherController extends ChangeNotifier {
       _pipeMode = false; // back to a consistent state: no pipe session open
       unawaited(_sub?.cancel());
       _sub = null;
-      _batcher = null;
       _loading = false;
       _error = '$e';
       _notify();
@@ -210,7 +204,7 @@ class LauncherController extends ChangeNotifier {
 
   /// Open the app launcher: terminal path, empty pipe at EOF, or grace
   /// timeout on a dry pipe. Keeps listening: slow-pipe data still flips
-  /// to the picker via _onLine.
+  /// to the picker when its first line arrives.
   void _enterApps() {
     try {
       final s = _openApps();
@@ -251,8 +245,6 @@ class LauncherController extends ChangeNotifier {
     _sub = null;
     _grace?.cancel();
     _grace = null;
-    _batcher?.close(); // flush leftovers through _onBatch
-    _batcher = null;
     if (!_attached) return;
     if (!_pipeMode && _session == null) {
       _enterApps(); // EOF with zero data: show apps

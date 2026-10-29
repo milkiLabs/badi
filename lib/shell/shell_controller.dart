@@ -18,7 +18,7 @@ class ShellController extends ChangeNotifier {
   bool _open = false;
   ShellRequestMode? _mode;
   LauncherActions? _actions;
-  StreamController<String>? _input;
+  StreamController<dynamic>? _input;
 
   /// Bumped on every open so the launcher view can key its state per
   /// request even if a rebuild reuses the element.
@@ -32,7 +32,7 @@ class ShellController extends ChangeNotifier {
 
   /// Lines input pipe; null in apps mode or while closed. Single-subscription:
   /// buffered until the launcher's controller attaches.
-  Stream<String>? get piped => _input?.stream;
+  Stream<dynamic>? get piped => _input?.stream;
 
   int get generation => _generation;
 
@@ -54,7 +54,7 @@ class ShellController extends ChangeNotifier {
     _open = true;
     _mode = ShellRequestMode.lines;
     _actions = actions;
-    _input = StreamController<String>();
+    _input = StreamController<dynamic>();
     _generation++;
     notifyListeners();
     return true;
@@ -67,6 +67,13 @@ class ShellController extends ChangeNotifier {
     final input = _input;
     if (!_open || input == null || input.isClosed) return;
     input.add(line);
+  }
+
+  /// Append one native batch to the lines stream.
+  void appendLines(List<String> lines) {
+    final input = _input;
+    if (!_open || input == null || input.isClosed || lines.isEmpty) return;
+    input.add(List<String>.unmodifiable(lines));
   }
 
   /// No more input is coming (client EOF). The launcher marks its stream

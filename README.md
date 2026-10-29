@@ -74,8 +74,8 @@ lib/ui/                  # bar_page, launcher_page, shell (layer-shell surfaces)
 lib/shell/               # shell_controller (state), shell_actions (spawn/reply)
 lib/core/                # launcher_controller, session, actions (UI-agnostic)
 lib/platform/            # ipc, process_actions, zig lib loading
-badi_lib/src/            # Zig core: app scan, filtering, FFI (no UI knowledge)
+badi_lib/src/            # Zig core: app scan, filtering, stdin reader/batcher, FFI
 test/                    # flutter test
 ```
 
-The Zig core only filters rows and serves row data; all windows, stdio, and process lifetime live in Dart. `lib/core/zig.g.dart` is generated from `badi_lib/src/badi.h` via `dart run tool/ffigen.dart`.
+Zig reads piped stdin on a native worker, splits and batches nonblank lines, and sends each batch to Flutter through FFI. The Dart layer owns the window, search interaction, and optional display command. `lib/core/zig.g.dart` is generated from `badi_lib/src/badi.h` via `dart run tool/ffigen.dart`.

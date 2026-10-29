@@ -1,6 +1,6 @@
 //! Picker core: one filtered list over either scanned apps or piped input
-//! lines. The frontend owns rendering, stdin/stdout, the window, the
-//! selection cursor, and spawning; scan results, filtering, and row data
+//! lines. The frontend owns rendering, the window, the selection cursor,
+//! and spawning; stdin batching, scan results, filtering, and row data
 //! live here so every frontend shares one tested implementation.
 
 const std = @import("std");

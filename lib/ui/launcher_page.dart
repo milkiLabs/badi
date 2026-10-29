@@ -22,7 +22,7 @@ class LauncherBody extends StatefulWidget {
     this.controller,
   });
 
-  final Stream<String>? piped;
+  final Stream<dynamic>? piped;
 
   /// Completion/cancellation handler. Inject a fake in widget tests to
   /// assert activation without exiting the test process.

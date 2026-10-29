@@ -503,6 +503,37 @@ class BadiLib {
               ffi.Pointer<BadiSession>, ffi.Size)>>('badi_session_title');
   late final _badi_session_title = _badi_session_titlePtr.asFunction<
       ffi.Pointer<ffi.Char> Function(ffi.Pointer<BadiSession>, int)>();
+
+  void badi_stdin_batch_free(
+    ffi.Pointer<ffi.Char> batch,
+  ) {
+    return _badi_stdin_batch_free(
+      batch,
+    );
+  }
+
+  late final _badi_stdin_batch_freePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Char>)>>(
+          'badi_stdin_batch_free');
+  late final _badi_stdin_batch_free = _badi_stdin_batch_freePtr
+      .asFunction<void Function(ffi.Pointer<ffi.Char>)>();
+
+  int badi_stdin_start(
+    BadiStdinCallback callback,
+    ffi.Pointer<ffi.Void> context,
+  ) {
+    return _badi_stdin_start(
+      callback,
+      context,
+    );
+  }
+
+  late final _badi_stdin_startPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int Function(
+              BadiStdinCallback, ffi.Pointer<ffi.Void>)>>('badi_stdin_start');
+  late final _badi_stdin_start = _badi_stdin_startPtr
+      .asFunction<int Function(BadiStdinCallback, ffi.Pointer<ffi.Void>)>();
 }
 
 final class BadiCpuSnapshot extends ffi.Struct {
@@ -549,3 +580,18 @@ final class BadiMemInfo extends ffi.Struct {
 }
 
 final class BadiSession extends ffi.Opaque {}
+
+typedef BadiStdinCallback
+    = ffi.Pointer<ffi.NativeFunction<BadiStdinCallbackFunction>>;
+typedef BadiStdinCallbackFunction = ffi.Void Function(
+    ffi.Pointer<ffi.Void> context,
+    ffi.Pointer<ffi.Char> batch,
+    ffi.Size byte_len,
+    ffi.Size line_count,
+    ffi.Int event);
+typedef DartBadiStdinCallbackFunction = void Function(
+    ffi.Pointer<ffi.Void> context,
+    ffi.Pointer<ffi.Char> batch,
+    int byte_len,
+    int line_count,
+    int event);

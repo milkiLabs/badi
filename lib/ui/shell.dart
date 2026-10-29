@@ -266,7 +266,7 @@ class BadiOneShot extends StatefulWidget {
   const BadiOneShot({super.key, this.piped});
 
   /// Piped input lines; null selects the app launcher.
-  final Stream<String>? piped;
+  final Stream<dynamic>? piped;
 
   @override
   State<BadiOneShot> createState() => _BadiOneShotState();

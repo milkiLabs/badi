@@ -1,7 +1,7 @@
 //! C ABI for the picker core: filtered views over scanned apps or piped
-//! input lines. The frontend renders rows and owns stdin/stdout, the
-//! selection cursor, and spawning; scan results, filtering, and row data
-//! live here.
+//! input lines. The frontend owns rendering, the selection cursor, and
+//! spawning; stdin line reading/batching, scan results, filtering, and row
+//! data live here.
 //!
 //! `badi.h` is the source of truth for ffigen; keep the signatures in sync.
 //!
@@ -17,8 +17,27 @@ const session = @import("session.zig");
 const sysmon = @import("sysmon.zig");
 const network = @import("network.zig");
 const desktop = @import("desktop.zig");
+const stdin = @import("stdin.zig");
 
 const c_alloc = std.heap.c_allocator;
+
+/// Start Zig's asynchronous stdin reader. The callback receives one
+/// newline-delimited batch at a time (event 0), followed by exactly one
+/// terminal event: 1 for EOF or -1 for a read error. Each non-empty batch
+/// must be released with `badi_stdin_batch_free` after it has been copied.
+export fn badi_stdin_start(
+    callback: ?stdin.Callback,
+    context: ?*anyopaque,
+) callconv(.c) c_int {
+    const cb = callback orelse return -1;
+    return if (stdin.start(cb, context)) 0 else -1;
+}
+
+/// Free a batch pointer delivered by the stdin callback. NULL-safe.
+export fn badi_stdin_batch_free(batch: ?[*:0]const u8) callconv(.c) void {
+    const ptr = batch orelse return;
+    c_alloc.free(std.mem.span(ptr));
+}
 
 /// Opaque handle owning a picker session. ABI-identical to
 /// `struct BadiSession` in `badi.h`.
